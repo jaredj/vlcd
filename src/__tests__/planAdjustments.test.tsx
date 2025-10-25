@@ -93,7 +93,7 @@ describe('PlanAdjustments', () => {
     expect(screen.getByText(/medical supervision required/i)).toBeInTheDocument();
   });
 
-  it('labels days based on whether they are past, today, or future', () => {
+  it('styles days based on whether they are past, today, or future', () => {
     const profile: Profile = {
       unitSystem: 'imperial',
       startDate: '2025-10-17',
@@ -113,11 +113,15 @@ describe('PlanAdjustments', () => {
       { initialState }
     );
 
-    const pastBadges = screen.getAllByText('Past');
-    expect(pastBadges.length).toBeGreaterThan(0);
-    expect(screen.getByText('Today')).toBeInTheDocument();
-    const futureBadges = screen.getAllByText('Future');
-    expect(futureBadges.length).toBeGreaterThan(0);
+    const table = screen.getByRole('table');
+    const pastRows = table.querySelectorAll('tr.plan-row-past');
+    expect(pastRows.length).toBeGreaterThan(0);
+
+    const todayRow = table.querySelector('tr.plan-row-today');
+    expect(todayRow).not.toBeNull();
+
+    const futureRows = table.querySelectorAll('tr.plan-row-future');
+    expect(futureRows.length).toBeGreaterThan(0);
   });
 
   it(

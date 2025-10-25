@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import type { JSX } from 'react';
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { useAppState } from '../lib/state';
@@ -21,6 +21,8 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
   }, [projections]);
 
   const profile = state.profile;
+  const tableWrapperRef = useRef<HTMLDivElement | null>(null);
+  const hasAutoScrolled = useRef(false);
   const minimumSafeCalories = useMemo(() => {
     if (!profile) {
       return null;
@@ -46,11 +48,26 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
       .filter((date): date is string => Boolean(date));
   }, [minimumSafeCalories, upcoming, state.plans]);
 
+  const today = new Date();
+
+  useEffect(() => {
+    if (hasAutoScrolled.current || !tableWrapperRef.current || !upcoming.length) {
+      return;
+    }
+
+    const targetRow =
+      tableWrapperRef.current.querySelector<HTMLTableRowElement>('.plan-row-today') ??
+      tableWrapperRef.current.querySelector<HTMLTableRowElement>('.plan-row-future');
+
+    if (targetRow) {
+      targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      hasAutoScrolled.current = true;
+    }
+  }, [upcoming]);
+
   if (!upcoming.length) {
     return <p>Projections are not available yet.</p>;
   }
-
-  const today = new Date();
 
   return (
     <section>
@@ -59,12 +76,11 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
         Fine-tune specific days by altering calories or anticipated activity. Adjustments automatically ripple into the rest of
         the model.
       </p>
-      <div className="table-wrapper">
+      <div className="table-wrapper" ref={tableWrapperRef}>
         <table>
           <thead>
             <tr>
               <th>Date</th>
-              <th>Status</th>
               <th>Calories</th>
               <th>Activity</th>
               <th>Fasted scale</th>
@@ -77,15 +93,11 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
               const custom = state.plans[day.date];
               const dayDate = parseISO(day.date);
               const delta = differenceInCalendarDays(dayDate, today);
-              const statusLabel = delta < 0 ? 'Past' : delta === 0 ? 'Today' : 'Future';
               const rowClassName =
                 delta < 0 ? 'plan-row plan-row-past' : delta === 0 ? 'plan-row plan-row-today' : 'plan-row plan-row-future';
               return (
                 <tr key={day.date} className={rowClassName}>
                   <td>{format(parseISO(day.date), 'MMM d')}</td>
-                  <td>
-                    <span className={`status-badge status-${statusLabel.toLowerCase()}`}>{statusLabel}</span>
-                  </td>
                   <td>
                     <input
                       type="number"
