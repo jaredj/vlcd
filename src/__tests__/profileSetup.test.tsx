@@ -2,15 +2,15 @@ import React from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen, waitFor } from '../test-utils';
 import { renderWithProviders } from '../test-utils';
-import ProfileSetup from '../components/ProfileSetup';
+import Dashboard from '../components/Dashboard';
 
-describe('ProfileSetup', () => {
+describe('Dashboard baseline inputs', () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
 
   it('prefills the default imperial alpinist profile', () => {
-    renderWithProviders(<ProfileSetup />);
+    renderWithProviders(<Dashboard />);
 
     const unitsSelect = screen.getByLabelText<HTMLSelectElement>(/units/i);
     expect(unitsSelect).toHaveValue('imperial');
@@ -26,14 +26,14 @@ describe('ProfileSetup', () => {
   });
 
   it('defaults the start date to October 17, 2025', () => {
-    renderWithProviders(<ProfileSetup />);
+    renderWithProviders(<Dashboard />);
 
     const startDateInput = screen.getByLabelText<HTMLInputElement>(/diet start date/i);
     expect(startDateInput).toHaveValue('2025-10-17');
   });
 
   it('switches to metric and converts values', () => {
-    renderWithProviders(<ProfileSetup />);
+    renderWithProviders(<Dashboard />);
 
     fireEvent.change(screen.getByLabelText<HTMLSelectElement>(/units/i), { target: { value: 'metric' } });
     const weightInput = screen.getByLabelText<HTMLInputElement>(/starting weight/i);
@@ -41,9 +41,9 @@ describe('ProfileSetup', () => {
   });
 
   it('persists the profile on submit', async () => {
-    renderWithProviders(<ProfileSetup />);
+    renderWithProviders(<Dashboard />);
 
-    fireEvent.click(screen.getByRole('button', { name: /save profile/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save baseline inputs/i }));
 
     await waitFor(() => {
       expect(window.localStorage.getItem('vlcd-app-state-v1')).not.toBeNull();
@@ -59,7 +59,7 @@ describe('ProfileSetup', () => {
   });
 
   it('displays calorie safety guidance and liability notice', () => {
-    renderWithProviders(<ProfileSetup />);
+    renderWithProviders(<Dashboard />);
 
     expect(screen.getByText(/recommended minimum based on your profile/i)).toBeInTheDocument();
     expect(screen.getByText(/strict and constant medical supervision/i)).toBeInTheDocument();
@@ -67,7 +67,7 @@ describe('ProfileSetup', () => {
   });
 
   it('alerts when planned calories drop below the recommended minimum', () => {
-    renderWithProviders(<ProfileSetup />);
+    renderWithProviders(<Dashboard />);
 
     const caloriesInput = screen.getByLabelText<HTMLInputElement>(/planned calories per day/i);
     fireEvent.change(caloriesInput, { target: { value: '400' } });
