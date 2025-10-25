@@ -43,42 +43,48 @@ jobs:
 
   build-and-test:
     needs: changes
-    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
+        if: needs.changes.outputs.run_ci == 'true'
         uses: actions/checkout@v4
 
       - name: Setup Node.js
+        if: needs.changes.outputs.run_ci == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
+        if: needs.changes.outputs.run_ci == 'true'
         run: npm ci
 
       - name: Lint
+        if: needs.changes.outputs.run_ci == 'true'
         run: npm run lint
 
       - name: Test
+        if: needs.changes.outputs.run_ci == 'true'
         run: npm run test -- --coverage
 
       - name: Build
+        if: needs.changes.outputs.run_ci == 'true'
         run: npm run build
 
       - name: Verify deployment bundle
+        if: needs.changes.outputs.run_ci == 'true'
         run: npm run verify:dist
 
       - name: Upload production bundle
+        if: needs.changes.outputs.run_ci == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist
 
-  ci-skipped:
-    needs: changes
-    if: needs.changes.outputs.run_ci != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "CI build, lint, and test steps skipped because only documentation or metadata files changed."
+      - name: CI skipped summary
+        if: needs.changes.outputs.run_ci != 'true'
+        run: |
+          echo "CI build, lint, and test steps skipped because only documentation or metadata files changed."
+          echo "CI build, lint, and test steps skipped because only documentation or metadata files changed." >> "$GITHUB_STEP_SUMMARY"

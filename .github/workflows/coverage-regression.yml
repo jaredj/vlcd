@@ -39,31 +39,33 @@ jobs:
 
   coverage:
     needs: changes
-    if: needs.changes.outputs.run_coverage == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
+        if: needs.changes.outputs.run_coverage == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Use Node.js
+        if: needs.changes.outputs.run_coverage == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
 
       - name: Install dependencies
+        if: needs.changes.outputs.run_coverage == 'true'
         run: npm ci
 
       - name: Run coverage regression check
+        if: needs.changes.outputs.run_coverage == 'true'
         env:
           COVERAGE_BASE_REF: origin/${{ github.base_ref }}
         run: npm test
 
-  coverage-skipped:
-    needs: changes
-    if: needs.changes.outputs.run_coverage != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Coverage regression check skipped because only documentation or metadata files changed."
+      - name: Coverage regression skipped summary
+        if: needs.changes.outputs.run_coverage != 'true'
+        run: |
+          echo "Coverage regression check skipped because only documentation or metadata files changed."
+          echo "Coverage regression check skipped because only documentation or metadata files changed." >> "$GITHUB_STEP_SUMMARY"
