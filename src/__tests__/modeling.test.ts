@@ -57,4 +57,20 @@ describe('generateProjections', () => {
     expect(dayTwo).toBeDefined();
     expect(dayTwo?.deficit).toBeLessThan(0);
   });
+
+  it('captures rapid glycogen losses during severe early deficits', () => {
+    const aggressiveProfile: Profile = {
+      ...profile,
+      defaultCalories: 350,
+      defaultActivityLevel: 'moderate'
+    };
+
+    const state: AppState = { profile: aggressiveProfile, plans: {}, measurements: {} };
+    const result = generateProjections(state, 10);
+    const weekProjection = result.projections.find((entry) => entry.date === '2025-01-08');
+    expect(weekProjection).toBeDefined();
+    const dropKg = aggressiveProfile.startWeightKg - (weekProjection?.refedScaleKg ?? aggressiveProfile.startWeightKg);
+    expect(dropKg).toBeGreaterThan(3.5);
+    expect(weekProjection?.fastedScaleKg).toBeLessThan(weekProjection?.refedScaleKg ?? 0);
+  });
 });

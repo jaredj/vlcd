@@ -66,6 +66,24 @@ function computeNormalizedBuffer(weightKg: number, activity: ActivityLevel): num
   return base + activityBonus;
 }
 
+function computeGlycogenRetention(dayIndex: number, deficit: number, calories: number): number {
+  if (deficit <= 0) {
+    return 1;
+  }
+
+  const intakeSeverity = calories >= 1200 ? 0 : Math.min(1, (1200 - calories) / 900);
+  const deficitSeverity = Math.min(1, Math.max(0, deficit - 500) / 2200);
+  const combinedSeverity = Math.min(1, intakeSeverity * 0.7 + deficitSeverity * 0.6);
+
+  if (combinedSeverity <= 0) {
+    return 1;
+  }
+
+  const rapidPhase = 1 - Math.exp(-dayIndex / 4);
+  const depletion = Math.min(0.6, combinedSeverity * rapidPhase * 0.85);
+  return Math.max(0.4, 1 - depletion);
+}
+
 function computeFastedWaterFraction(deficit: number, calories: number): number {
   const effectiveDeficit = Math.max(0, deficit);
   const deficitFactor = Math.min(0.65, effectiveDeficit / 2400 * 0.65);
@@ -143,19 +161,21 @@ export function generateProjections(state: AppState, horizonDays = 365): Project
     const bmr = calculateBmr(profile, previousFastedMass, calories, weightLossFromStart);
     const tee = bmr * ACTIVITY_FACTORS[activityLevel];
     const deficit = tee - calories;
+    const glycogenRetention = computeGlycogenRetention(i, deficit, calories);
+    const refedBuffer = buffer * glycogenRetention;
     const diminishing = 1 - Math.min(0.45, Math.max(0, weightLossFromStart) / startFastedKg * 0.65);
     const effectiveDeficit = deficit * diminishing;
     const tissueDeltaKg = -(effectiveDeficit / ENERGY_DENSITY_PER_KG);
 
     let projectedFastedMass = Math.max(35, previousFastedMass + tissueDeltaKg);
     let fastedFraction = computeFastedWaterFraction(deficit, calories);
-    let fastedScaleKg = projectedFastedMass + buffer * fastedFraction;
-    let refedScaleKg = projectedFastedMass + buffer;
+    let fastedScaleKg = projectedFastedMass + refedBuffer * fastedFraction;
+    let refedScaleKg = projectedFastedMass + refedBuffer;
     let measurementKg: number | undefined;
     let measurementFasted: boolean | undefined;
 
     if (measurement) {
-      const measurementBuffer = computeNormalizedBuffer(measurement.weightKg, activityLevel);
+      const measurementBuffer = computeNormalizedBuffer(measurement.weightKg, activityLevel) * glycogenRetention;
       fastedFraction = computeFastedWaterFraction(deficit, calories);
       const derived = deriveFastedFromMeasurement(
         measurement.weightKg,

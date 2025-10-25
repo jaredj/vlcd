@@ -17,8 +17,10 @@ export default function MethodologyDetails(): JSX.Element {
         <summary>Water weight & glycogen forecasting</summary>
         <p>
           Two weight curves are produced. The fasted curve assumes glycogen remains suppressed from continuous energy deficit,
-          so only a fraction of the normal hydration buffer is present. The refed curve restores the full glycogen-bound water,
-          approximating the number you would see after a week at maintenance calories.
+          so only a fraction of the normal hydration buffer is present. The refed curve models how much of that buffer returns
+          after a period of maintenance eating. Very-low calorie intakes and large daily deficits trigger a sharper early
+          reduction to reflect rapid glycogen depletion and natriuresis documented in VLCD studies, so the projected scale
+          weight drops a little faster during the first couple of weeks before settling into a slower fat-loss-driven trend.
         </p>
       </details>
       <details>
