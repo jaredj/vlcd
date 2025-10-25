@@ -82,8 +82,22 @@ export default function ProfileSetup({ onComplete }: ProfileSetupProps): JSX.Ele
     };
   });
 
-  const heightCm = form.unitSystem === 'imperial' ? feetInchesToCentimeters(form.heightFeet, form.heightInches) : form.heightCm;
-  const weightKg = form.unitSystem === 'imperial' ? poundsToKilograms(form.startWeight) : form.startWeight;
+  const { heightCm, weightKg } = useMemo(() => {
+    const nextHeightCm =
+      form.unitSystem === 'imperial'
+        ? feetInchesToCentimeters(form.heightFeet, form.heightInches)
+        : form.heightCm;
+    const nextWeightKg =
+      form.unitSystem === 'imperial' ? poundsToKilograms(form.startWeight) : form.startWeight;
+
+    return { heightCm: nextHeightCm, weightKg: nextWeightKg };
+  }, [
+    form.heightCm,
+    form.heightFeet,
+    form.heightInches,
+    form.startWeight,
+    form.unitSystem
+  ]);
   const profilePreviewBmi = bmi(weightKg, heightCm);
   const goalInfo = useMemo(() => getGoalInfo(form.goal), [form.goal]);
   const goalWeightKg = goalInfo.targetBmi * (heightCm / 100) * (heightCm / 100);
@@ -95,7 +109,12 @@ export default function ProfileSetup({ onComplete }: ProfileSetupProps): JSX.Ele
         age: form.age,
         sex: form.sex
       }),
-    [form.age, form.sex, heightCm, weightKg]
+    [
+      form.age,
+      form.sex,
+      heightCm,
+      weightKg
+    ]
   );
   const isBelowMinimum = form.defaultCalories < minimumSafeCalories;
 
