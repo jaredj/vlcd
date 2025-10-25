@@ -55,6 +55,22 @@ function computeNormalizedBuffer(weightKg: number, activity: ActivityLevel): num
   return base + activityBonus;
 }
 
+function estimateInitialTransientFluid(weightKg: number): number {
+  const scaled = weightKg * 0.02;
+  return Math.min(3.8, Math.max(1.3, scaled));
+}
+
+function computeTransientFluidDrain(transientFluidKg: number, calories: number, deficit: number): number {
+  if (transientFluidKg <= 0 || deficit <= 0) {
+    return 0;
+  }
+  const intensity = Math.min(1, deficit / 2200);
+  const vlcdBoost = calories <= 600 ? 0.75 : calories <= 900 ? 0.55 : calories <= 1200 ? 0.35 : 0.18;
+  const minimumDrain = 0.08 * intensity;
+  const drain = Math.min(transientFluidKg, Math.max(minimumDrain, (0.22 + vlcdBoost) * intensity));
+  return Math.max(0, Math.min(0.95, drain));
+}
+
 function computeFastedWaterFraction(deficit: number, calories: number): number {
   const effectiveDeficit = Math.max(0, deficit);
   const deficitFactor = Math.min(0.65, effectiveDeficit / 2400 * 0.65);
@@ -122,6 +138,7 @@ interface SimulationOptions {
   measurement?: DailyMeasurement;
   startFastedKg: number;
   weightLossFromStart: number;
+  transientFluidKg: number;
 }
 
 interface SimulationResult {
@@ -133,6 +150,7 @@ interface SimulationResult {
   deficit: number;
   measurementKg?: number;
   measurementFasted?: boolean;
+  nextTransientFluidKg: number;
 }
 
 function simulateDay({
@@ -142,7 +160,8 @@ function simulateDay({
   activityLevel,
   measurement,
   startFastedKg,
-  weightLossFromStart
+  weightLossFromStart,
+  transientFluidKg
 }: SimulationOptions): SimulationResult {
   const buffer = computeNormalizedBuffer(previousFastedMass, activityLevel);
   const bmr = calculateBmr(profile, previousFastedMass, calories, weightLossFromStart);
@@ -153,6 +172,9 @@ function simulateDay({
   const tissueDeltaKg = -(effectiveDeficit / ENERGY_DENSITY_PER_KG);
 
   let projectedFastedMass = Math.max(35, previousFastedMass + tissueDeltaKg);
+  const transientDrain = computeTransientFluidDrain(transientFluidKg, calories, deficit);
+  projectedFastedMass = Math.max(35, projectedFastedMass - transientDrain);
+  let nextTransientFluidKg = Math.max(0, transientFluidKg - transientDrain);
   let fastedFraction = computeFastedWaterFraction(deficit, calories);
   let fastedScaleKg = projectedFastedMass + buffer * fastedFraction;
   let refedScaleKg = projectedFastedMass + buffer;
@@ -173,6 +195,7 @@ function simulateDay({
     refedScaleKg = derived.refedScaleKg;
     measurementKg = measurement.weightKg;
     measurementFasted = measurement.fasted;
+    nextTransientFluidKg = Math.min(nextTransientFluidKg, transientFluidKg * 0.5);
   }
 
   return {
@@ -183,7 +206,8 @@ function simulateDay({
     tee,
     deficit,
     measurementKg,
-    measurementFasted
+    measurementFasted,
+    nextTransientFluidKg
   };
 }
 
@@ -205,6 +229,7 @@ export function generateProjections(state: AppState, horizonDays = 365): Project
   const startBuffer = computeNormalizedBuffer(profile.startWeightKg, profile.defaultActivityLevel);
   const startFastedKg = Math.max(35, profile.startWeightKg - startBuffer);
   const startRefedKg = startFastedKg + startBuffer;
+  let transientFluidKg = estimateInitialTransientFluid(profile.startWeightKg);
 
   const startDate = new Date(profile.startDate);
   const today = formatISO(new Date(), { representation: 'date' });
@@ -264,7 +289,8 @@ export function generateProjections(state: AppState, horizonDays = 365): Project
       activityLevel,
       measurement,
       startFastedKg,
-      weightLossFromStart
+      weightLossFromStart,
+      transientFluidKg
     });
 
     if (!maintenanceActive && dayResult.refedScaleKg <= targetWeightKg) {
@@ -284,11 +310,13 @@ export function generateProjections(state: AppState, horizonDays = 365): Project
         activityLevel,
         measurement,
         startFastedKg,
-        weightLossFromStart
+        weightLossFromStart,
+        transientFluidKg
       });
     }
 
     previousFastedMass = dayResult.projectedFastedMass;
+    transientFluidKg = dayResult.nextTransientFluidKg;
 
     if (dateIso === today) {
       currentRefedKg = dayResult.refedScaleKg;

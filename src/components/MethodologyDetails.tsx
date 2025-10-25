@@ -14,6 +14,16 @@ export default function MethodologyDetails(): JSX.Element {
         </p>
       </details>
       <details>
+        <summary>Why the first week can fall faster</summary>
+        <p>
+          The simulator now carries a transient glycogen-and-fluid store that depletes quickly when carbohydrates are scarce
+          and energy deficits exceed roughly 1,000 kilocalories per day. Research on very-low-calorie diets shows that liver
+          and muscle glycogen can shrink by two to three kilograms of hydrated mass during the first several days, especially
+          when intake stays below 900 kcal. The projection mirrors that front-loaded drop, so aggressive plans will forecast a
+          slightly faster scale response before settling into the slower, tissue-driven trend.
+        </p>
+      </details>
+      <details>
         <summary>Water weight & glycogen forecasting</summary>
         <p>
           Two weight curves are produced. The fasted curve assumes glycogen remains suppressed from continuous energy deficit,

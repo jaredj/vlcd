@@ -22,7 +22,7 @@ describe('generateProjections', () => {
     expect(result.targetWeightKg).toBeLessThan(profile.startWeightKg);
     const finalProjection = result.projections[result.projections.length - 1];
     expect(finalProjection.refedScaleKg).toBeLessThan(profile.startWeightKg);
-    expect(Math.abs(result.projections[0].refedScaleKg - profile.startWeightKg)).toBeLessThan(0.5);
+    expect(Math.abs(result.projections[0].refedScaleKg - profile.startWeightKg)).toBeLessThan(1);
   });
 
   it('respects recorded measurements and flags them in the timeline', () => {
@@ -104,5 +104,22 @@ describe('generateProjections', () => {
       expect(Math.abs(entry.tee - entry.calories)).toBeLessThan(50);
       expect(Math.abs(entry.refedScaleKg - entry.fastedScaleKg)).toBeLessThan(0.1);
     });
+  });
+
+  it('captures rapid early losses when calories are extremely low', () => {
+    const aggressiveProfile: Profile = {
+      ...profile,
+      defaultCalories: 300,
+      defaultActivityLevel: 'moderate'
+    };
+    const state: AppState = { profile: aggressiveProfile, plans: {}, measurements: {} };
+    const result = generateProjections(state, 10);
+    const weekMark = result.projections.find((entry) => entry.date === '2025-01-08');
+    expect(weekMark).toBeDefined();
+    if (!weekMark) {
+      return;
+    }
+    expect(weekMark.refedScaleKg).toBeLessThan(poundsToKilograms(254));
+    expect(weekMark.refedScaleKg).toBeGreaterThan(poundsToKilograms(246));
   });
 });
