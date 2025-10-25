@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { JSX } from 'react';
 import { differenceInCalendarDays, format, formatISO, parseISO } from 'date-fns';
 import { useAppState } from '../lib/state';
@@ -13,15 +13,47 @@ interface PlanAdjustmentsProps {
 
 export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsProps): JSX.Element {
   const { state, updatePlan, removePlan, recordMeasurement, removeMeasurement } = useAppState();
-  const [focusDays] = useState(21);
-  const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
-  const [fastedDrafts, setFastedDrafts] = useState<Record<string, boolean>>({});
+  const focusDays = 21;
+  const [weightDraftsByUnit, setWeightDraftsByUnit] = useState<Record<UnitSystem, Record<string, string>>>(() => ({
+    imperial: {},
+    metric: {}
+  }));
+  const [fastedDraftsByUnit, setFastedDraftsByUnit] = useState<Record<UnitSystem, Record<string, boolean>>>(() => ({
+    imperial: {},
+    metric: {}
+  }));
+  const weightDrafts = weightDraftsByUnit[unit];
+  const fastedDrafts = fastedDraftsByUnit[unit];
   const todayIso = formatISO(new Date(), { representation: 'date' });
 
-  useEffect(() => {
-    setWeightDrafts({});
-    setFastedDrafts({});
-  }, [unit]);
+  function updateWeightDraft(dateIso: string, value: string) {
+    setWeightDraftsByUnit((prev) => ({
+      ...prev,
+      [unit]: {
+        ...prev[unit],
+        [dateIso]: value
+      }
+    }));
+  }
+
+  function clearWeightDraft(dateIso: string) {
+    setWeightDraftsByUnit((prev) => {
+      const nextUnitDrafts = { ...prev[unit] };
+      delete nextUnitDrafts[dateIso];
+      return { ...prev, [unit]: nextUnitDrafts };
+    });
+  }
+
+  function updateFastedDraft(dateIso: string, value: boolean) {
+    setFastedDraftsByUnit((prev) => ({
+      ...prev,
+      [unit]: {
+        ...prev[unit],
+        [dateIso]: value
+      }
+    }));
+  }
+
 
   function rippleCalories(dateIso: string, calories: number) {
     if (!Number.isFinite(calories)) return;
@@ -76,11 +108,7 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
       if (measurement) {
         removeMeasurement(dateIso);
       }
-      setWeightDrafts((prev) => {
-        const next = { ...prev };
-        delete next[dateIso];
-        return next;
-      });
+      clearWeightDraft(dateIso);
       return;
     }
 
@@ -90,21 +118,18 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
     }
     const weightKg = unit === 'imperial' ? poundsToKilograms(parsed) : parsed;
     recordMeasurement({ date: dateIso, weightKg, fasted });
-    setWeightDrafts((prev) => {
-      const next = { ...prev };
-      delete next[dateIso];
-      return next;
-    });
+    clearWeightDraft(dateIso);
   }
 
   function handleFastedChange(dateIso: string, nextValue: boolean) {
-    setFastedDrafts((prev) => ({ ...prev, [dateIso]: nextValue }));
+    updateFastedDraft(dateIso, nextValue);
     const measurement = state.measurements[dateIso];
     const draftWeight = weightDrafts[dateIso];
+    const trimmedDraft = draftWeight?.trim();
     if (measurement) {
       recordMeasurement({ date: dateIso, weightKg: measurement.weightKg, fasted: nextValue });
-    } else if (draftWeight && draftWeight.trim()) {
-      const parsed = Number(draftWeight);
+    } else if (trimmedDraft) {
+      const parsed = Number(trimmedDraft);
       if (Number.isFinite(parsed) && parsed > 0) {
         const weightKg = unit === 'imperial' ? poundsToKilograms(parsed) : parsed;
         recordMeasurement({ date: dateIso, weightKg, fasted: nextValue });
@@ -204,9 +229,7 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
                       aria-label={`Weight for ${day.date}`}
                       value={weightValue}
                       disabled={disableWeight}
-                      onChange={(event) =>
-                        setWeightDrafts((prev) => ({ ...prev, [day.date]: event.target.value }))
-                      }
+                      onChange={(event) => updateWeightDraft(day.date, event.target.value)}
                       onBlur={() => commitWeight(day.date)}
                       onKeyDown={(event) => {
                         if (event.key === 'Enter') {

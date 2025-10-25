@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import type { AppState } from '../types';
 
 const STORAGE_KEY = 'vlcd-app-state-v1';
@@ -9,7 +10,9 @@ export const INITIAL_STATE: AppState = {
   measurements: {}
 };
 
-export function usePersistentState(initialOverride?: AppState): [AppState, (next: AppState) => void] {
+export function usePersistentState(
+  initialOverride?: AppState
+): [AppState, Dispatch<SetStateAction<AppState>>] {
   const [state, setState] = useState<AppState>(() => {
     if (initialOverride) {
       return initialOverride;

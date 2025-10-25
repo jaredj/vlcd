@@ -133,8 +133,8 @@ export default function ProfileSetup({ onComplete, variant = 'standalone' }: Pro
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  const ContainerTag = (variant === 'embedded' ? 'div' : 'section') as 'div' | 'section';
-  const HeadingTag = (variant === 'embedded' ? 'h3' : 'h2') as 'h2' | 'h3';
+  const ContainerTag: 'div' | 'section' = variant === 'embedded' ? 'div' : 'section';
+  const HeadingTag: 'h2' | 'h3' = variant === 'embedded' ? 'h3' : 'h2';
   const headingText = existingProfile
     ? variant === 'embedded'
       ? 'Adjust your profile'
