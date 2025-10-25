@@ -38,6 +38,7 @@ describe('PlanAdjustments', () => {
     const projection = generateProjections(initialState, 10);
     const dayOne = projection.projections[0].date;
     const dayTwo = projection.projections[1].date;
+    const dayAfterManual = projection.projections[4].date;
 
     renderWithProviders(
       <PlanAdjustments projections={projection.projections} unit={profile.unitSystem} />,
@@ -56,6 +57,8 @@ describe('PlanAdjustments', () => {
       expect(stored.plans?.[dayTwo]?.calories).toBe(950);
       expect(stored.plans?.[dayTwo]?.source).toBe('propagated');
       expect(stored.plans?.[manualOverrideDate]?.calories).toBe(900);
+      expect(stored.plans?.[dayAfterManual]?.calories).toBe(950);
+      expect(stored.plans?.[dayAfterManual]?.source).toBe('propagated');
     });
 
     const dayOneRow = screen.getByLabelText<HTMLInputElement>(`Calories for ${dayOne}`).closest('tr');

@@ -68,7 +68,7 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
       const entry = projections[i];
       const plan = state.plans[entry.date];
       if (plan?.source === 'manual') {
-        break;
+        continue;
       }
       updatePlan(
         entry.date,
