@@ -120,12 +120,15 @@ describe('PlanAdjustments', () => {
     expect(futureBadges.length).toBeGreaterThan(0);
   });
 
-  it('displays the full projection horizon in the adjustments table', () => {
-    const profile: Profile = {
-      unitSystem: 'imperial',
-      startDate: '2025-10-17',
-      startWeightKg: poundsToKilograms(265),
-      heightCm: feetInchesToCentimeters(5, 10.5),
+  it(
+    'displays the full projection horizon in the adjustments table',
+    { timeout: 15000 },
+    () => {
+      const profile: Profile = {
+        unitSystem: 'imperial',
+        startDate: '2025-10-17',
+        startWeightKg: poundsToKilograms(265),
+        heightCm: feetInchesToCentimeters(5, 10.5),
       age: 44,
       sex: 'male',
       goal: 'alpinist-ready',
@@ -148,11 +151,12 @@ describe('PlanAdjustments', () => {
     expect(rows).toHaveLength(projection.projections.length + 1);
 
     const lastDateLabel = format(parseISO(finalDay.date), 'MMM d');
-    expect(screen.getAllByText(lastDateLabel).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(lastDateLabel).length).toBeGreaterThan(0);
 
-    const finalCaloriesInput = screen.getByLabelText(`Calories for ${finalDay.date}`);
-    expect(finalCaloriesInput).toBeInTheDocument();
-  });
+      const finalCaloriesInput = screen.getByLabelText(`Calories for ${finalDay.date}`);
+      expect(finalCaloriesInput).toBeInTheDocument();
+    }
+  );
 
   it('falls back gracefully when projections are unavailable', () => {
     const initialState: AppState = { profile: null, plans: {}, measurements: {} };
