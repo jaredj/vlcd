@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "verify:dist": "node scripts/verify-dist-base.mjs",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "node scripts/run-coverage-regression-check.mjs",
     "test:watch": "vitest",
     "lint": "eslint . --ext .ts,.tsx --max-warnings=0",
     "format": "prettier --write ."

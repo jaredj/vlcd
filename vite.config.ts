@@ -10,7 +10,7 @@ export default defineConfig(({ command }) => ({
     setupFiles: './vitest.setup.ts',
     coverage: {
       provider: 'istanbul',
-      reporter: ['text', 'lcov'],
+      reporter: ['text', 'lcov', 'json-summary'],
       include: ['src/**/*.{ts,tsx}'],
       exclude: ['src/main.tsx'],
       thresholds: {
