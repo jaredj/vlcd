@@ -99,4 +99,28 @@ describe('PlanAdjustments', () => {
     const futureBadges = screen.getAllByText('Future');
     expect(futureBadges.length).toBeGreaterThan(0);
   });
+
+  it('shows the entire plan including refeeding days', () => {
+    const profile: Profile = {
+      unitSystem: 'imperial',
+      startDate: '2025-10-17',
+      startWeightKg: poundsToKilograms(265),
+      heightCm: feetInchesToCentimeters(5, 10.5),
+      age: 44,
+      sex: 'male',
+      goal: 'alpinist-ready',
+      defaultCalories: 800,
+      defaultActivityLevel: 'minimal'
+    };
+    const initialState: AppState = { profile, plans: {}, measurements: {} };
+    const projection = generateProjections(initialState, 120);
+
+    renderWithProviders(
+      <PlanAdjustments projections={projection.projections} unit={profile.unitSystem} />,
+      { initialState }
+    );
+
+    const rows = screen.getAllByRole('row');
+    expect(rows).toHaveLength(projection.projections.length + 1);
+  });
 });
