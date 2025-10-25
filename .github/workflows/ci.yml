@@ -30,6 +30,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Verify deployment bundle
+        run: npm run verify:dist
+
       - name: Upload production bundle
         uses: actions/upload-artifact@v4
         with:
