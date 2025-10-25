@@ -9,7 +9,7 @@ interface ProfileSummaryProps {
   projection: ProjectionResult;
 }
 
-export default function ProfileSummary({ projection }: ProfileSummaryProps): JSX.Element {
+export default function ProfileSummary({ projection }: ProfileSummaryProps): JSX.Element | null {
   const { state } = useAppState();
   const profile = state.profile;
 

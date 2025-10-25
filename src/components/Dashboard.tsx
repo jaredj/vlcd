@@ -14,7 +14,8 @@ import ProfileInputsPanel from './ProfileInputsPanel';
 export default function Dashboard(): JSX.Element {
   const { state } = useAppState();
   const projection = useMemo(() => generateProjections(state, 420), [state]);
-  const unit = state.profile?.unitSystem;
+  const profile = state.profile;
+  const unit = profile?.unitSystem;
   const todayIso = formatISO(new Date(), { representation: 'date' });
   const todayEntry = projection.projections.find((entry) => entry.date === todayIso) ?? projection.projections[0];
 
@@ -54,7 +55,9 @@ export default function Dashboard(): JSX.Element {
             <ProjectionChart data={projection.projections} unit={unit} />
           </section>
           <PlanAdjustments projections={projection.projections} unit={unit} />
-          <MeasurementForm key={`${unit}-${Math.round(state.profile.startWeightKg)}`} unit={unit} />
+          {profile ? (
+            <MeasurementForm key={`${unit}-${Math.round(profile.startWeightKg)}`} unit={unit} />
+          ) : null}
         </>
       ) : (
         <section>
