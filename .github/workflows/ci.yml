@@ -6,7 +6,44 @@ on:
   pull_request:
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run_ci: ${{ steps.decide.outputs.run_ci }}
+    steps:
+      - name: Checkout
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect non-trivial changes
+        if: github.event_name == 'pull_request'
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          # Treat documentation and static metadata changes as trivial so we can
+          # short-circuit expensive CI checks when they are the only files
+          # modified in a pull request. The full list of trivial patterns lives
+          # in .github/trivial-paths.yml so all workflows stay in sync.
+          filters: .github/trivial-paths.yml
+
+      - name: Decide whether to run CI
+        id: decide
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            if [ "${{ steps.filter.outputs.non_trivial }}" = "true" ]; then
+              echo "run_ci=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "run_ci=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "run_ci=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build-and-test:
+    needs: changes
+    if: needs.changes.outputs.run_ci == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -38,3 +75,10 @@ jobs:
         with:
           name: dist
           path: dist
+
+  ci-skipped:
+    needs: changes
+    if: needs.changes.outputs.run_ci != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "CI build, lint, and test steps skipped because only documentation or metadata files changed."

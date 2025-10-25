@@ -9,7 +9,37 @@ on:
       - ready_for_review
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run_coverage: ${{ steps.decide.outputs.run_ci }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect non-trivial changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          # Keep the definition of "non-trivial" in sync with ci.yml so that
+          # both workflows short-circuit under the same conditions by reading
+          # the shared filter list.
+          filters: .github/trivial-paths.yml
+
+      - name: Decide whether to run coverage regression
+        id: decide
+        run: |
+          if [ "${{ steps.filter.outputs.non_trivial }}" = "true" ]; then
+            echo "run_ci=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_ci=false" >> "$GITHUB_OUTPUT"
+          fi
+
   coverage:
+    needs: changes
+    if: needs.changes.outputs.run_coverage == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -30,3 +60,10 @@ jobs:
         env:
           COVERAGE_BASE_REF: origin/${{ github.base_ref }}
         run: npm test
+
+  coverage-skipped:
+    needs: changes
+    if: needs.changes.outputs.run_coverage != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Coverage regression check skipped because only documentation or metadata files changed."
