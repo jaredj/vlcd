@@ -15,7 +15,7 @@ describe('PlanAdjustments', () => {
   it('saves custom calorie targets for a day', async () => {
     const profile: Profile = {
       unitSystem: 'imperial',
-      startDate: '2025-01-01',
+      startDate: '2025-10-17',
       startWeightKg: poundsToKilograms(265),
       heightCm: feetInchesToCentimeters(5, 10.5),
       age: 44,
@@ -50,7 +50,7 @@ describe('PlanAdjustments', () => {
   it('flags days planned below the recommended minimum', () => {
     const profile: Profile = {
       unitSystem: 'imperial',
-      startDate: '2025-01-01',
+      startDate: '2025-10-17',
       startWeightKg: poundsToKilograms(265),
       heightCm: feetInchesToCentimeters(5, 10.5),
       age: 44,
@@ -71,5 +71,32 @@ describe('PlanAdjustments', () => {
     );
 
     expect(screen.getByText(/medical supervision required/i)).toBeInTheDocument();
+  });
+
+  it('labels days based on whether they are past, today, or future', () => {
+    const profile: Profile = {
+      unitSystem: 'imperial',
+      startDate: '2025-10-17',
+      startWeightKg: poundsToKilograms(265),
+      heightCm: feetInchesToCentimeters(5, 10.5),
+      age: 44,
+      sex: 'male',
+      goal: 'alpinist-ready',
+      defaultCalories: 800,
+      defaultActivityLevel: 'minimal'
+    };
+    const initialState: AppState = { profile, plans: {}, measurements: {} };
+    const projection = generateProjections(initialState, 14);
+
+    renderWithProviders(
+      <PlanAdjustments projections={projection.projections} unit={profile.unitSystem} />,
+      { initialState }
+    );
+
+    const pastBadges = screen.getAllByText('Past');
+    expect(pastBadges.length).toBeGreaterThan(0);
+    expect(screen.getByText('Today')).toBeInTheDocument();
+    const futureBadges = screen.getAllByText('Future');
+    expect(futureBadges.length).toBeGreaterThan(0);
   });
 });

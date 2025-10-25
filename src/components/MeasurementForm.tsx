@@ -11,7 +11,8 @@ interface MeasurementFormProps {
 
 export default function MeasurementForm({ unit }: MeasurementFormProps): JSX.Element {
   const { recordMeasurement, removeMeasurement, state } = useAppState();
-  const [date, setDate] = useState<string>(formatISO(new Date(), { representation: 'date' }));
+  const todayIso = formatISO(new Date(), { representation: 'date' });
+  const [date, setDate] = useState<string>(todayIso);
   const [weight, setWeight] = useState<number>(() =>
     unit === 'imperial'
       ? Math.round(kilogramsToPounds(state.profile?.startWeightKg ?? 0))
@@ -23,18 +24,22 @@ export default function MeasurementForm({ unit }: MeasurementFormProps): JSX.Ele
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const safeDate = date > todayIso ? todayIso : date;
     const weightKg = unit === 'imperial' ? poundsToKilograms(weight) : weight;
-    recordMeasurement({ date, weightKg, fasted });
+    recordMeasurement({ date: safeDate, weightKg, fasted });
+    if (safeDate !== date) {
+      setDate(safeDate);
+    }
   }
 
   return (
     <section>
       <h2>Track your weigh-ins</h2>
-      <p>Record the scale weight for any past or current day. Mark if it was taken while fasted.</p>
+      <p>Record the scale weight for any past or current day. Future days unlock automatically when they arrive.</p>
       <form onSubmit={handleSubmit} className="grid two-columns">
         <label>
           Date
-          <input type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
+          <input type="date" value={date} max={todayIso} onChange={(event) => setDate(event.target.value)} required />
         </label>
         <label>
           Weight ({unit === 'imperial' ? 'lb' : 'kg'})

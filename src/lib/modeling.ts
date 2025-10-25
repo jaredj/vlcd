@@ -34,17 +34,6 @@ export interface ProjectionResult {
   currentRefedKg: number | null;
 }
 
-function getPlanForDate(profile: Profile, plans: Record<string, DayPlan>, dateIso: string): {
-  calories: number;
-  activityLevel: ActivityLevel;
-} {
-  const plan = plans[dateIso];
-  return {
-    calories: plan?.calories ?? profile.defaultCalories,
-    activityLevel: plan?.activityLevel ?? profile.defaultActivityLevel
-  };
-}
-
 function getMeasurementForDate(
   measurements: Record<string, DailyMeasurement>,
   dateIso: string
@@ -105,6 +94,99 @@ function computeTargetWeightKg(goal: FitnessGoal, heightCm: number, startBmi: nu
   return targetBmi * area;
 }
 
+function solveMaintenanceCalories({
+  profile,
+  weightKg,
+  activityLevel,
+  weightLossFromStart
+}: {
+  profile: Profile;
+  weightKg: number;
+  activityLevel: ActivityLevel;
+  weightLossFromStart: number;
+}): number {
+  let calories = Math.max(profile.defaultCalories, 1400);
+  for (let i = 0; i < 6; i += 1) {
+    const bmr = calculateBmr(profile, weightKg, calories, weightLossFromStart);
+    const tee = bmr * ACTIVITY_FACTORS[activityLevel];
+    calories = tee;
+  }
+  return Math.round(calories);
+}
+
+interface SimulationOptions {
+  profile: Profile;
+  previousFastedMass: number;
+  calories: number;
+  activityLevel: ActivityLevel;
+  measurement?: DailyMeasurement;
+  startFastedKg: number;
+  weightLossFromStart: number;
+}
+
+interface SimulationResult {
+  projectedFastedMass: number;
+  fastedScaleKg: number;
+  refedScaleKg: number;
+  bmr: number;
+  tee: number;
+  deficit: number;
+  measurementKg?: number;
+  measurementFasted?: boolean;
+}
+
+function simulateDay({
+  profile,
+  previousFastedMass,
+  calories,
+  activityLevel,
+  measurement,
+  startFastedKg,
+  weightLossFromStart
+}: SimulationOptions): SimulationResult {
+  const buffer = computeNormalizedBuffer(previousFastedMass, activityLevel);
+  const bmr = calculateBmr(profile, previousFastedMass, calories, weightLossFromStart);
+  const tee = bmr * ACTIVITY_FACTORS[activityLevel];
+  const deficit = tee - calories;
+  const diminishing = 1 - Math.min(0.45, Math.max(0, weightLossFromStart) / startFastedKg * 0.65);
+  const effectiveDeficit = deficit * diminishing;
+  const tissueDeltaKg = -(effectiveDeficit / ENERGY_DENSITY_PER_KG);
+
+  let projectedFastedMass = Math.max(35, previousFastedMass + tissueDeltaKg);
+  let fastedFraction = computeFastedWaterFraction(deficit, calories);
+  let fastedScaleKg = projectedFastedMass + buffer * fastedFraction;
+  let refedScaleKg = projectedFastedMass + buffer;
+  let measurementKg: number | undefined;
+  let measurementFasted: boolean | undefined;
+
+  if (measurement) {
+    const measurementBuffer = computeNormalizedBuffer(measurement.weightKg, activityLevel);
+    fastedFraction = computeFastedWaterFraction(deficit, calories);
+    const derived = deriveFastedFromMeasurement(
+      measurement.weightKg,
+      measurement.fasted,
+      measurementBuffer,
+      fastedFraction
+    );
+    projectedFastedMass = derived.fastedMassKg;
+    fastedScaleKg = derived.fastedScaleKg;
+    refedScaleKg = derived.refedScaleKg;
+    measurementKg = measurement.weightKg;
+    measurementFasted = measurement.fasted;
+  }
+
+  return {
+    projectedFastedMass,
+    fastedScaleKg,
+    refedScaleKg,
+    bmr,
+    tee,
+    deficit,
+    measurementKg,
+    measurementFasted
+  };
+}
+
 export function generateProjections(state: AppState, horizonDays = 365): ProjectionResult {
   const { profile, plans, measurements } = state;
   if (!profile) {
@@ -132,68 +214,112 @@ export function generateProjections(state: AppState, horizonDays = 365): Project
   let targetDate: string | null = null;
   let currentRefedKg: number | null = null;
 
+  const sortedPlans = Object.values(plans)
+    .filter((plan): plan is DayPlan => Boolean(plan?.date))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  let planPointer = 0;
+  let activeCalories = profile.defaultCalories;
+  let maintenanceActive = false;
+  let maintenanceDays = 0;
+  let settledDays = 0;
+
   for (let i = 0; i <= horizonDays; i += 1) {
     const date = addDays(startDate, i);
     const dateIso = formatISO(date, { representation: 'date' });
-    const { calories, activityLevel } = getPlanForDate(profile, plans, dateIso);
-    const buffer = computeNormalizedBuffer(previousFastedMass, activityLevel);
+    if (!maintenanceActive) {
+      while (planPointer < sortedPlans.length && sortedPlans[planPointer].date <= dateIso) {
+        const anchor = sortedPlans[planPointer];
+        if (anchor.calories !== undefined) {
+          activeCalories = anchor.calories;
+        }
+        planPointer += 1;
+      }
+    }
+
+    const planForDay = plans[dateIso];
+    const activityLevel = planForDay?.activityLevel ?? profile.defaultActivityLevel;
     const measurement = getMeasurementForDate(measurements, dateIso);
-
     const weightLossFromStart = startFastedKg - previousFastedMass;
-    const bmr = calculateBmr(profile, previousFastedMass, calories, weightLossFromStart);
-    const tee = bmr * ACTIVITY_FACTORS[activityLevel];
-    const deficit = tee - calories;
-    const diminishing = 1 - Math.min(0.45, Math.max(0, weightLossFromStart) / startFastedKg * 0.65);
-    const effectiveDeficit = deficit * diminishing;
-    const tissueDeltaKg = -(effectiveDeficit / ENERGY_DENSITY_PER_KG);
 
-    let projectedFastedMass = Math.max(35, previousFastedMass + tissueDeltaKg);
-    let fastedFraction = computeFastedWaterFraction(deficit, calories);
-    let fastedScaleKg = projectedFastedMass + buffer * fastedFraction;
-    let refedScaleKg = projectedFastedMass + buffer;
-    let measurementKg: number | undefined;
-    let measurementFasted: boolean | undefined;
-
-    if (measurement) {
-      const measurementBuffer = computeNormalizedBuffer(measurement.weightKg, activityLevel);
-      fastedFraction = computeFastedWaterFraction(deficit, calories);
-      const derived = deriveFastedFromMeasurement(
-        measurement.weightKg,
-        measurement.fasted,
-        measurementBuffer,
-        fastedFraction
-      );
-      projectedFastedMass = derived.fastedMassKg;
-      fastedScaleKg = derived.fastedScaleKg;
-      refedScaleKg = derived.refedScaleKg;
-      measurementKg = measurement.weightKg;
-      measurementFasted = measurement.fasted;
+    if (!maintenanceActive && planForDay?.calories !== undefined) {
+      activeCalories = planForDay.calories;
     }
 
-    previousFastedMass = projectedFastedMass;
+    if (maintenanceActive) {
+      activeCalories = solveMaintenanceCalories({
+        profile,
+        weightKg: previousFastedMass,
+        activityLevel,
+        weightLossFromStart
+      });
+    }
 
-    if (!targetDate && refedScaleKg <= targetWeightKg) {
+    let caloriesForDay = Math.round(activeCalories);
+
+    let dayResult = simulateDay({
+      profile,
+      previousFastedMass,
+      calories: caloriesForDay,
+      activityLevel,
+      measurement,
+      startFastedKg,
+      weightLossFromStart
+    });
+
+    if (!maintenanceActive && dayResult.refedScaleKg <= targetWeightKg) {
       targetDate = dateIso;
+      maintenanceActive = true;
+      activeCalories = solveMaintenanceCalories({
+        profile,
+        weightKg: previousFastedMass,
+        activityLevel,
+        weightLossFromStart
+      });
+      caloriesForDay = Math.round(activeCalories);
+      dayResult = simulateDay({
+        profile,
+        previousFastedMass,
+        calories: caloriesForDay,
+        activityLevel,
+        measurement,
+        startFastedKg,
+        weightLossFromStart
+      });
     }
+
+    previousFastedMass = dayResult.projectedFastedMass;
 
     if (dateIso === today) {
-      currentRefedKg = refedScaleKg;
+      currentRefedKg = dayResult.refedScaleKg;
     }
 
     projections.push({
       date: dateIso,
-      calories,
+      calories: caloriesForDay,
       activityLevel,
-      bmr,
-      tee,
-      deficit,
-      fastedWeightKg: projectedFastedMass,
-      fastedScaleKg,
-      refedScaleKg,
+      bmr: dayResult.bmr,
+      tee: dayResult.tee,
+      deficit: dayResult.deficit,
+      fastedWeightKg: dayResult.projectedFastedMass,
+      fastedScaleKg: dayResult.fastedScaleKg,
+      refedScaleKg: dayResult.refedScaleKg,
       isMeasurement: Boolean(measurement),
-      measurementKg,
-      measurementFasted
+      measurementKg: dayResult.measurementKg,
+      measurementFasted: dayResult.measurementFasted
     });
+
+    if (maintenanceActive) {
+      maintenanceDays += 1;
+      if (Math.abs(dayResult.refedScaleKg - dayResult.fastedScaleKg) <= 0.05) {
+        settledDays += 1;
+      } else {
+        settledDays = 0;
+      }
+      if (settledDays >= 2 || maintenanceDays >= 30) {
+        break;
+      }
+    }
 
     if (differenceInCalendarDays(date, new Date()) > 730) {
       break;

@@ -82,6 +82,41 @@ th {
   border-bottom: 1px solid #e2e8f0;
 }
 
+tr.plan-row-past {
+  background: #f1f5f9;
+}
+
+tr.plan-row-today {
+  background: #ecfdf5;
+}
+
+tr.plan-row-future {
+  background: #f5f3ff;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.status-past {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.status-today {
+  background: #bbf7d0;
+  color: #166534;
+}
+
+.status-future {
+  background: #ddd6fe;
+  color: #4c1d95;
+}
+
 .badge {
   display: inline-block;
   padding: 0.25rem 0.75rem;

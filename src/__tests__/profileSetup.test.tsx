@@ -25,6 +25,13 @@ describe('ProfileSetup', () => {
     expect(ageInput).toHaveValue(44);
   });
 
+  it('defaults the start date to October 17, 2025', () => {
+    renderWithProviders(<ProfileSetup />);
+
+    const startDateInput = screen.getByLabelText<HTMLInputElement>(/diet start date/i);
+    expect(startDateInput).toHaveValue('2025-10-17');
+  });
+
   it('switches to metric and converts values', () => {
     renderWithProviders(<ProfileSetup />);
 
@@ -54,7 +61,7 @@ describe('ProfileSetup', () => {
   it('displays calorie safety guidance and liability notice', () => {
     renderWithProviders(<ProfileSetup />);
 
-    expect(screen.getByText(/recommended minimum for your current stats/i)).toBeInTheDocument();
+    expect(screen.getByText(/recommended minimum based on your profile/i)).toBeInTheDocument();
     expect(screen.getByText(/strict and constant medical supervision/i)).toBeInTheDocument();
     expect(screen.getByText(/indemnify and hold the creators harmless/i)).toBeInTheDocument();
   });
