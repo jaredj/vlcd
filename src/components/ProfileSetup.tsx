@@ -13,6 +13,8 @@ import {
   kilogramsToPounds,
   poundsToKilograms
 } from '../utils/conversions';
+import { calculateMinimumSafeCalories } from '../utils/calorieSafety';
+import LiabilityNotice from './LiabilityNotice';
 
 const DEFAULT_START_WEIGHT_LB = 265;
 const DEFAULT_HEIGHT_FEET = 5;
@@ -80,11 +82,41 @@ export default function ProfileSetup({ onComplete }: ProfileSetupProps): JSX.Ele
     };
   });
 
-  const heightCm = form.unitSystem === 'imperial' ? feetInchesToCentimeters(form.heightFeet, form.heightInches) : form.heightCm;
-  const weightKg = form.unitSystem === 'imperial' ? poundsToKilograms(form.startWeight) : form.startWeight;
+  const { heightCm, weightKg } = useMemo(() => {
+    const nextHeightCm =
+      form.unitSystem === 'imperial'
+        ? feetInchesToCentimeters(form.heightFeet, form.heightInches)
+        : form.heightCm;
+    const nextWeightKg =
+      form.unitSystem === 'imperial' ? poundsToKilograms(form.startWeight) : form.startWeight;
+
+    return { heightCm: nextHeightCm, weightKg: nextWeightKg };
+  }, [
+    form.heightCm,
+    form.heightFeet,
+    form.heightInches,
+    form.startWeight,
+    form.unitSystem
+  ]);
   const profilePreviewBmi = bmi(weightKg, heightCm);
   const goalInfo = useMemo(() => getGoalInfo(form.goal), [form.goal]);
   const goalWeightKg = goalInfo.targetBmi * (heightCm / 100) * (heightCm / 100);
+  const minimumSafeCalories = useMemo(
+    () =>
+      calculateMinimumSafeCalories({
+        weightKg,
+        heightCm,
+        age: form.age,
+        sex: form.sex
+      }),
+    [
+      form.age,
+      form.sex,
+      heightCm,
+      weightKg
+    ]
+  );
+  const isBelowMinimum = form.defaultCalories < minimumSafeCalories;
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -235,14 +267,28 @@ export default function ProfileSetup({ onComplete }: ProfileSetupProps): JSX.Ele
           Planned calories per day
           <input
             type="number"
-            min={400}
+            min={0}
             max={2500}
             step="10"
             value={form.defaultCalories}
             onChange={(event) => updateField('defaultCalories', Number(event.target.value))}
             required
+            aria-describedby="calorie-safety-note"
           />
         </label>
+        <div className="notice" role="note" id="calorie-safety-note">
+          <p>
+            Recommended minimum for your current stats: <strong>{minimumSafeCalories.toLocaleString()} kcal/day</strong>.
+          </p>
+          {isBelowMinimum ? (
+            <p>
+              <strong>Medical supervision required:</strong> Plans below this level must only be pursued under strict and
+              constant medical supervision.
+            </p>
+          ) : (
+            <p>Only consider going below this threshold with strict and constant medical supervision.</p>
+          )}
+        </div>
         <label>
           Expected baseline activity
           <select
@@ -269,6 +315,7 @@ export default function ProfileSetup({ onComplete }: ProfileSetupProps): JSX.Ele
           <button type="submit">{existingProfile ? 'Update profile' : 'Save profile'}</button>
         </div>
       </form>
+      <LiabilityNotice />
     </section>
   );
 }
