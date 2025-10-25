@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { JSX } from 'react';
-import { format, parseISO } from 'date-fns';
+import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { useAppState } from '../lib/state';
 import { ACTIVITY_LABELS } from '../lib/activity';
 import type { DailyProjection, UnitSystem } from '../types';
@@ -51,6 +51,8 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
     return <p>Projections are not available yet.</p>;
   }
 
+  const today = new Date();
+
   return (
     <section>
       <h2>Daily plan adjustments</h2>
@@ -63,6 +65,7 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
           <thead>
             <tr>
               <th>Date</th>
+              <th>Status</th>
               <th>Calories</th>
               <th>Activity</th>
               <th>Fasted scale</th>
@@ -73,9 +76,17 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
           <tbody>
             {upcoming.map((day) => {
               const custom = state.plans[day.date];
+              const dayDate = parseISO(day.date);
+              const delta = differenceInCalendarDays(dayDate, today);
+              const statusLabel = delta < 0 ? 'Past' : delta === 0 ? 'Today' : 'Future';
+              const rowClassName =
+                delta < 0 ? 'plan-row plan-row-past' : delta === 0 ? 'plan-row plan-row-today' : 'plan-row plan-row-future';
               return (
-                <tr key={day.date}>
+                <tr key={day.date} className={rowClassName}>
                   <td>{format(parseISO(day.date), 'MMM d')}</td>
+                  <td>
+                    <span className={`status-badge status-${statusLabel.toLowerCase()}`}>{statusLabel}</span>
+                  </td>
                   <td>
                     <input
                       type="number"

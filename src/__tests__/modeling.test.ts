@@ -57,4 +57,52 @@ describe('generateProjections', () => {
     expect(dayTwo).toBeDefined();
     expect(dayTwo?.deficit).toBeLessThan(0);
   });
+
+  it('propagates calorie edits forward until a new adjustment is encountered', () => {
+    const state: AppState = {
+      profile,
+      plans: {
+        '2025-01-03': { date: '2025-01-03', calories: 950, activityLevel: 'minimal' },
+        '2025-01-06': { date: '2025-01-06', calories: 870, activityLevel: 'minimal' }
+      },
+      measurements: {}
+    };
+    const result = generateProjections(state, 10);
+    const dayTwo = result.projections.find((entry) => entry.date === '2025-01-02');
+    const dayFour = result.projections.find((entry) => entry.date === '2025-01-04');
+    const daySix = result.projections.find((entry) => entry.date === '2025-01-06');
+    const daySeven = result.projections.find((entry) => entry.date === '2025-01-07');
+
+    expect(dayTwo?.calories).toBe(profile.defaultCalories);
+    expect(dayFour?.calories).toBe(950);
+    expect(daySix?.calories).toBe(870);
+    expect(daySeven?.calories).toBe(870);
+  });
+
+  it('transitions to maintenance calories once the target weight is achieved', () => {
+    const state: AppState = {
+      profile,
+      plans: {
+        '2025-01-01': { date: '2025-01-01', calories: 600, activityLevel: 'minimal' }
+      },
+      measurements: {}
+    };
+    const result = generateProjections(state, 400);
+    expect(result.targetDate).not.toBeNull();
+    if (!result.targetDate) {
+      return;
+    }
+
+    const targetIndex = result.projections.findIndex((entry) => entry.date === result.targetDate);
+    expect(targetIndex).toBeGreaterThan(-1);
+
+    const maintenanceSegment = result.projections.slice(targetIndex);
+    expect(maintenanceSegment.length).toBeGreaterThanOrEqual(1);
+    expect(maintenanceSegment.length).toBeLessThanOrEqual(3);
+
+    maintenanceSegment.forEach((entry) => {
+      expect(Math.abs(entry.tee - entry.calories)).toBeLessThan(50);
+      expect(Math.abs(entry.refedScaleKg - entry.fastedScaleKg)).toBeLessThan(0.1);
+    });
+  });
 });
