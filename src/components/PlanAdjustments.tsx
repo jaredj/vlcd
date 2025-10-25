@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import type { JSX } from 'react';
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { useAppState } from '../lib/state';
@@ -15,11 +15,10 @@ interface PlanAdjustmentsProps {
 
 export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsProps): JSX.Element {
   const { state, updatePlan, removePlan } = useAppState();
-  const [focusDays] = useState(21);
 
   const upcoming = useMemo(() => {
-    return projections.slice(0, focusDays);
-  }, [focusDays, projections]);
+    return projections;
+  }, [projections]);
 
   const profile = state.profile;
   const minimumSafeCalories = useMemo(() => {
