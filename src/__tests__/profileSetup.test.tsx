@@ -50,4 +50,21 @@ describe('ProfileSetup', () => {
       defaultCalories: 800
     });
   });
+
+  it('displays calorie safety guidance and liability notice', () => {
+    renderWithProviders(<ProfileSetup />);
+
+    expect(screen.getByText(/recommended minimum for your current stats/i)).toBeInTheDocument();
+    expect(screen.getByText(/strict and constant medical supervision/i)).toBeInTheDocument();
+    expect(screen.getByText(/indemnify and hold the creators harmless/i)).toBeInTheDocument();
+  });
+
+  it('alerts when planned calories drop below the recommended minimum', () => {
+    renderWithProviders(<ProfileSetup />);
+
+    const caloriesInput = screen.getByLabelText<HTMLInputElement>(/planned calories per day/i);
+    fireEvent.change(caloriesInput, { target: { value: '400' } });
+
+    expect(screen.getByText(/medical supervision required/i)).toBeInTheDocument();
+  });
 });

@@ -5,6 +5,8 @@ import { useAppState } from '../lib/state';
 import { ACTIVITY_LABELS } from '../lib/activity';
 import type { DailyProjection, UnitSystem } from '../types';
 import { formatWeight } from '../utils/conversions';
+import { calculateMinimumSafeCalories } from '../utils/calorieSafety';
+import LiabilityNotice from './LiabilityNotice';
 
 interface PlanAdjustmentsProps {
   projections: DailyProjection[];
@@ -18,6 +20,32 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
   const upcoming = useMemo(() => {
     return projections.slice(0, focusDays);
   }, [focusDays, projections]);
+
+  const profile = state.profile;
+  const minimumSafeCalories = useMemo(() => {
+    if (!profile) {
+      return null;
+    }
+    return calculateMinimumSafeCalories({
+      weightKg: profile.startWeightKg,
+      heightCm: profile.heightCm,
+      age: profile.age,
+      sex: profile.sex
+    });
+  }, [profile]);
+
+  const belowMinimumDates = useMemo(() => {
+    if (!minimumSafeCalories) {
+      return [] as string[];
+    }
+    return upcoming
+      .map((day) => {
+        const custom = state.plans[day.date];
+        const calories = custom?.calories ?? day.calories;
+        return calories < minimumSafeCalories ? day.date : null;
+      })
+      .filter((date): date is string => Boolean(date));
+  }, [minimumSafeCalories, upcoming, state.plans]);
 
   if (!upcoming.length) {
     return <p>Projections are not available yet.</p>;
@@ -51,7 +79,6 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
                   <td>
                     <input
                       type="number"
-                      min={400}
                       max={4000}
                       step={10}
                       aria-label={`Calories for ${day.date}`}
@@ -94,6 +121,22 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
           </tbody>
         </table>
       </div>
+      {minimumSafeCalories ? (
+        <div className="notice" role="note">
+          <p>
+            Recommended minimum based on your profile: <strong>{minimumSafeCalories.toLocaleString()} kcal/day</strong>.
+          </p>
+          {belowMinimumDates.length ? (
+            <p>
+              <strong>Medical supervision required:</strong> One or more planned days fall below this level. Such
+              protocols must only occur under strict and constant medical supervision.
+            </p>
+          ) : (
+            <p>Targets below this threshold must only be undertaken under strict and constant medical supervision.</p>
+          )}
+        </div>
+      ) : null}
+      <LiabilityNotice />
     </section>
   );
 }

@@ -42,5 +42,34 @@ describe('PlanAdjustments', () => {
       };
       expect(stored.plans?.[targetDate]?.calories).toBe(950);
     });
+
+    expect(screen.getByText(/recommended minimum based on your profile/i)).toBeInTheDocument();
+    expect(screen.getByText(/indemnify and hold the creators harmless/i)).toBeInTheDocument();
+  });
+
+  it('flags days planned below the recommended minimum', () => {
+    const profile: Profile = {
+      unitSystem: 'imperial',
+      startDate: '2025-01-01',
+      startWeightKg: poundsToKilograms(265),
+      heightCm: feetInchesToCentimeters(5, 10.5),
+      age: 44,
+      sex: 'male',
+      goal: 'alpinist-ready',
+      defaultCalories: 650,
+      defaultActivityLevel: 'minimal'
+    };
+    const plans: AppState['plans'] = {
+      '2025-01-01': { date: '2025-01-01', calories: 450, activityLevel: 'minimal' }
+    };
+    const initialState: AppState = { profile, plans, measurements: {} };
+    const projection = generateProjections(initialState, 1);
+
+    renderWithProviders(
+      <PlanAdjustments projections={projection.projections} unit={profile.unitSystem} />,
+      { initialState }
+    );
+
+    expect(screen.getByText(/medical supervision required/i)).toBeInTheDocument();
   });
 });
