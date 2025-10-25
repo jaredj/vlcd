@@ -66,7 +66,17 @@ jobs:
 
       - name: Test
         if: needs.changes.outputs.run_ci == 'true'
+        env:
+          COVERAGE_SKIP_BASE: '1'
         run: npm run test -- --coverage
+
+      - name: Upload coverage summary
+        if: needs.changes.outputs.run_ci == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summary
+          path: coverage/coverage-summary.json
+          if-no-files-found: error
 
       - name: Build
         if: needs.changes.outputs.run_ci == 'true'
@@ -88,3 +98,113 @@ jobs:
         run: |
           echo "CI build, lint, and test steps skipped because only documentation or metadata files changed."
           echo "CI build, lint, and test steps skipped because only documentation or metadata files changed." >> "$GITHUB_STEP_SUMMARY"
+
+  coverage-comparison:
+    needs:
+      - changes
+      - build-and-test
+    if: needs.changes.outputs.run_ci == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download coverage summary
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-summary
+          path: coverage-summary
+
+      - name: Compare coverage against base branch
+        id: coverage
+        continue-on-error: true
+        env:
+          COVERAGE_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'origin/main' }}
+          COVERAGE_HEAD_SUMMARY: coverage-summary/coverage-summary.json
+          COVERAGE_REPORT_PATH: coverage-report.md
+        run: npm run test
+
+      - name: Publish coverage comparison comment
+        if: ${{ github.event_name == 'pull_request' && always() }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            const reportPath = 'coverage-report.md';
+            if (!fs.existsSync(reportPath)) {
+              core.warning(`Coverage report not found at ${reportPath}; skipping PR comment.`);
+              return;
+            }
+
+            const isFork = context.payload.pull_request?.head?.repo?.fork ?? false;
+            if (isFork) {
+              core.info('Skipping coverage comment because the pull request originates from a fork.');
+              return;
+            }
+
+            const marker = '<!-- coverage-report -->';
+            const body = fs.readFileSync(reportPath, 'utf8');
+            const fullBody = `${marker}\n${body}`;
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+
+            if (!issue_number) {
+              core.warning('No pull request context available; skipping PR comment.');
+              return;
+            }
+
+            try {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number,
+                per_page: 100,
+              });
+
+              const existing = comments.find((comment) => comment.body?.startsWith(marker));
+
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner,
+                  repo,
+                  comment_id: existing.id,
+                  body: fullBody,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number,
+                  body: fullBody,
+                });
+              }
+            } catch (error) {
+              if (error.status === 403 || error.response?.status === 403) {
+                core.warning(
+                  'Insufficient permissions to publish coverage comparison comment. ' +
+                    'Verify that the workflow token has pull request comment access.'
+                );
+                return;
+              }
+
+              throw error;
+            }
+
+      - name: Fail if coverage comparison detected regressions
+        if: ${{ steps.coverage.outcome == 'failure' }}
+        run: |
+          echo 'Coverage regression detected.'
+          exit 1
