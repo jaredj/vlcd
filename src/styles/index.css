@@ -100,6 +100,50 @@ th {
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 }
 
+.day-row.status-past {
+  background-color: #f8fafc;
+}
+
+.day-row.status-today {
+  background-color: #ecfdf5;
+}
+
+.day-row.status-future {
+  background-color: #fefce8;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+}
+
+.status-badge.status-past {
+  background: #e2e8f0;
+  color: #1f2937;
+}
+
+.status-badge.status-today {
+  background: #bbf7d0;
+  color: #065f46;
+}
+
+.status-badge.status-future {
+  background: #fde68a;
+  color: #92400e;
+}
+
+.profile-setup-embedded {
+  margin-top: 1.5rem;
+}
+
+.profile-setup-embedded form {
+  margin-top: 1rem;
+}
+
 @media (max-width: 768px) {
   main {
     padding: 0.75rem;

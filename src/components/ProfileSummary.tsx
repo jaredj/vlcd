@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { JSX } from 'react';
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { useAppState } from '../lib/state';
@@ -12,7 +12,6 @@ interface ProfileSummaryProps {
 
 export default function ProfileSummary({ projection }: ProfileSummaryProps): JSX.Element {
   const { state, reset } = useAppState();
-  const [editing, setEditing] = useState(false);
   const profile = state.profile;
 
   if (!profile) {
@@ -62,15 +61,12 @@ export default function ProfileSummary({ projection }: ProfileSummaryProps): JSX
           ) : (
             <p>No predicted date yet — adjust calories or activity to drive further change.</p>
           )}
-          <button type="button" onClick={() => setEditing((prev) => !prev)}>
-            {editing ? 'Close editor' : 'Edit profile'}
-          </button>
-          <button type="button" style={{ marginLeft: '0.5rem', background: '#ef4444' }} onClick={() => reset()}>
+          <button type="button" style={{ background: '#ef4444', marginTop: '0.5rem' }} onClick={() => reset()}>
             Reset everything
           </button>
         </div>
       </div>
-      {editing ? <ProfileSetup onComplete={() => setEditing(false)} /> : null}
+      <ProfileSetup variant="embedded" />
     </section>
   );
 }

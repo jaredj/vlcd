@@ -18,6 +18,7 @@ export default function MeasurementForm({ unit }: MeasurementFormProps): JSX.Ele
       : Math.round(state.profile?.startWeightKg ?? 0)
   );
   const [fasted, setFasted] = useState<boolean>(true);
+  const todayIso = formatISO(new Date(), { representation: 'date' });
 
   const records = useMemo(() => Object.values(state.measurements).sort((a, b) => a.date.localeCompare(b.date)), [state.measurements]);
 
@@ -34,7 +35,13 @@ export default function MeasurementForm({ unit }: MeasurementFormProps): JSX.Ele
       <form onSubmit={handleSubmit} className="grid two-columns">
         <label>
           Date
-          <input type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
+          <input
+            type="date"
+            max={todayIso}
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
+            required
+          />
         </label>
         <label>
           Weight ({unit === 'imperial' ? 'lb' : 'kg'})

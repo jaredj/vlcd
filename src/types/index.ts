@@ -26,6 +26,7 @@ export interface DayPlan {
   date: string; // ISO date
   calories?: number;
   activityLevel?: ActivityLevel;
+  source?: 'manual' | 'propagated';
 }
 
 export interface DailyMeasurement {

@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { JSX } from 'react';
-import { format, parseISO } from 'date-fns';
+import { differenceInCalendarDays, format, formatISO, parseISO } from 'date-fns';
 import { useAppState } from '../lib/state';
 import { ACTIVITY_LABELS } from '../lib/activity';
 import type { DailyProjection, UnitSystem } from '../types';
-import { formatWeight } from '../utils/conversions';
+import { formatWeight, kilogramsToPounds, poundsToKilograms } from '../utils/conversions';
 
 interface PlanAdjustmentsProps {
   projections: DailyProjection[];
@@ -12,8 +12,112 @@ interface PlanAdjustmentsProps {
 }
 
 export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsProps): JSX.Element {
-  const { state, updatePlan, removePlan } = useAppState();
+  const { state, updatePlan, removePlan, recordMeasurement, removeMeasurement } = useAppState();
   const [focusDays] = useState(21);
+  const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
+  const [fastedDrafts, setFastedDrafts] = useState<Record<string, boolean>>({});
+  const todayIso = formatISO(new Date(), { representation: 'date' });
+
+  useEffect(() => {
+    setWeightDrafts({});
+    setFastedDrafts({});
+  }, [unit]);
+
+  function rippleCalories(dateIso: string, calories: number) {
+    if (!Number.isFinite(calories)) return;
+    const startIndex = projections.findIndex((entry) => entry.date === dateIso);
+    if (startIndex < 0) return;
+
+    const initialPlan = state.plans[dateIso];
+    const startingActivity = initialPlan?.activityLevel ?? projections[startIndex].activityLevel;
+    updatePlan(dateIso, { calories, activityLevel: startingActivity }, { source: 'manual' });
+
+    for (let i = startIndex + 1; i < projections.length; i += 1) {
+      const entry = projections[i];
+      const plan = state.plans[entry.date];
+      if (plan?.source === 'manual') {
+        break;
+      }
+      updatePlan(
+        entry.date,
+        {
+          calories,
+          activityLevel: plan?.activityLevel ?? entry.activityLevel
+        },
+        { source: 'propagated' }
+      );
+    }
+  }
+
+  function getWeightDisplayValue(dateIso: string): string {
+    if (weightDrafts[dateIso] !== undefined) {
+      return weightDrafts[dateIso];
+    }
+    const measurement = state.measurements[dateIso];
+    if (!measurement) return '';
+    const value = unit === 'imperial' ? kilogramsToPounds(measurement.weightKg) : measurement.weightKg;
+    return value.toFixed(1);
+  }
+
+  function getFastedValue(dateIso: string): boolean {
+    if (fastedDrafts[dateIso] !== undefined) {
+      return fastedDrafts[dateIso];
+    }
+    return state.measurements[dateIso]?.fasted ?? true;
+  }
+
+  function commitWeight(dateIso: string) {
+    const measurement = state.measurements[dateIso];
+    const draft = weightDrafts[dateIso];
+    const trimmed = draft?.trim() ?? '';
+    const fasted = getFastedValue(dateIso);
+
+    if (!trimmed) {
+      if (measurement) {
+        removeMeasurement(dateIso);
+      }
+      setWeightDrafts((prev) => {
+        const next = { ...prev };
+        delete next[dateIso];
+        return next;
+      });
+      return;
+    }
+
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return;
+    }
+    const weightKg = unit === 'imperial' ? poundsToKilograms(parsed) : parsed;
+    recordMeasurement({ date: dateIso, weightKg, fasted });
+    setWeightDrafts((prev) => {
+      const next = { ...prev };
+      delete next[dateIso];
+      return next;
+    });
+  }
+
+  function handleFastedChange(dateIso: string, nextValue: boolean) {
+    setFastedDrafts((prev) => ({ ...prev, [dateIso]: nextValue }));
+    const measurement = state.measurements[dateIso];
+    const draftWeight = weightDrafts[dateIso];
+    if (measurement) {
+      recordMeasurement({ date: dateIso, weightKg: measurement.weightKg, fasted: nextValue });
+    } else if (draftWeight && draftWeight.trim()) {
+      const parsed = Number(draftWeight);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        const weightKg = unit === 'imperial' ? poundsToKilograms(parsed) : parsed;
+        recordMeasurement({ date: dateIso, weightKg, fasted: nextValue });
+      }
+    }
+  }
+
+  function getRowStatus(dateIso: string): 'past' | 'today' | 'future' {
+    const delta = differenceInCalendarDays(parseISO(dateIso), parseISO(todayIso));
+    if (delta < 0) return 'past';
+    if (delta === 0) return 'today';
+    return 'future';
+  }
 
   const upcoming = useMemo(() => {
     return projections.slice(0, focusDays);
@@ -35,8 +139,11 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
           <thead>
             <tr>
               <th>Date</th>
+              <th>Status</th>
               <th>Calories</th>
               <th>Activity</th>
+              <th>Weight</th>
+              <th>Fasted?</th>
               <th>Fasted scale</th>
               <th>Refed scale</th>
               <th></th>
@@ -45,9 +152,17 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
           <tbody>
             {upcoming.map((day) => {
               const custom = state.plans[day.date];
+              const rowStatus = getRowStatus(day.date);
+              const disableWeight = rowStatus === 'future';
+              const weightValue = getWeightDisplayValue(day.date);
+              const fasted = getFastedValue(day.date);
+              const statusLabel = rowStatus === 'past' ? 'Past' : rowStatus === 'today' ? 'Today' : 'Upcoming';
               return (
-                <tr key={day.date}>
+                <tr key={day.date} className={`day-row status-${rowStatus}`}>
                   <td>{format(parseISO(day.date), 'MMM d')}</td>
+                  <td>
+                    <span className={`status-badge status-${rowStatus}`}>{statusLabel}</span>
+                  </td>
                   <td>
                     <input
                       type="number"
@@ -56,9 +171,7 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
                       step={10}
                       aria-label={`Calories for ${day.date}`}
                       value={custom?.calories ?? day.calories}
-                      onChange={(event) =>
-                        updatePlan(day.date, { calories: Number(event.target.value), activityLevel: day.activityLevel })
-                      }
+                      onChange={(event) => rippleCalories(day.date, Number(event.target.value))}
                     />
                   </td>
                   <td>
@@ -66,10 +179,14 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
                       aria-label={`Activity for ${day.date}`}
                       value={custom?.activityLevel ?? day.activityLevel}
                       onChange={(event) =>
-                        updatePlan(day.date, {
-                          activityLevel: event.target.value as typeof day.activityLevel,
-                          calories: custom?.calories ?? day.calories
-                        })
+                        updatePlan(
+                          day.date,
+                          {
+                            activityLevel: event.target.value as typeof day.activityLevel,
+                            calories: custom?.calories ?? day.calories
+                          },
+                          { source: 'manual' }
+                        )
                       }
                     >
                       {Object.entries(ACTIVITY_LABELS).map(([value, label]) => (
@@ -78,6 +195,35 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
                         </option>
                       ))}
                     </select>
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      step={0.1}
+                      inputMode="decimal"
+                      aria-label={`Weight for ${day.date}`}
+                      value={weightValue}
+                      disabled={disableWeight}
+                      onChange={(event) =>
+                        setWeightDrafts((prev) => ({ ...prev, [day.date]: event.target.value }))
+                      }
+                      onBlur={() => commitWeight(day.date)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          commitWeight(day.date);
+                        }
+                      }}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      aria-label={`Fasted measurement for ${day.date}`}
+                      checked={fasted}
+                      disabled={disableWeight}
+                      onChange={(event) => handleFastedChange(day.date, event.target.checked)}
+                    />
                   </td>
                   <td>{formatWeight(day.fastedScaleKg, unit)}</td>
                   <td>{formatWeight(day.refedScaleKg, unit)}</td>

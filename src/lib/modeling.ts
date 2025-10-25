@@ -131,21 +131,26 @@ export function generateProjections(state: AppState, horizonDays = 365): Project
   let projections: DailyProjection[] = [];
   let targetDate: string | null = null;
   let currentRefedKg: number | null = null;
+  let maintenanceMode = false;
+  let maintenanceCalories: number | null = null;
+  let maintenanceStabilityCounter = 0;
 
   for (let i = 0; i <= horizonDays; i += 1) {
     const date = addDays(startDate, i);
     const dateIso = formatISO(date, { representation: 'date' });
-    const { calories, activityLevel } = getPlanForDate(profile, plans, dateIso);
+    const plan = getPlanForDate(profile, plans, dateIso);
+    const activityLevel = plan.activityLevel;
+    let calories = maintenanceMode && maintenanceCalories !== null ? maintenanceCalories : plan.calories;
     const buffer = computeNormalizedBuffer(previousFastedMass, activityLevel);
     const measurement = getMeasurementForDate(measurements, dateIso);
 
     const weightLossFromStart = startFastedKg - previousFastedMass;
-    const bmr = calculateBmr(profile, previousFastedMass, calories, weightLossFromStart);
-    const tee = bmr * ACTIVITY_FACTORS[activityLevel];
-    const deficit = tee - calories;
+    let bmr = calculateBmr(profile, previousFastedMass, calories, weightLossFromStart);
+    let tee = bmr * ACTIVITY_FACTORS[activityLevel];
+    let deficit = tee - calories;
     const diminishing = 1 - Math.min(0.45, Math.max(0, weightLossFromStart) / startFastedKg * 0.65);
-    const effectiveDeficit = deficit * diminishing;
-    const tissueDeltaKg = -(effectiveDeficit / ENERGY_DENSITY_PER_KG);
+    const effectiveDeficit = maintenanceMode ? 0 : deficit * diminishing;
+    let tissueDeltaKg = -(effectiveDeficit / ENERGY_DENSITY_PER_KG);
 
     let projectedFastedMass = Math.max(35, previousFastedMass + tissueDeltaKg);
     let fastedFraction = computeFastedWaterFraction(deficit, calories);
@@ -168,6 +173,41 @@ export function generateProjections(state: AppState, horizonDays = 365): Project
       refedScaleKg = derived.refedScaleKg;
       measurementKg = measurement.weightKg;
       measurementFasted = measurement.fasted;
+    }
+
+    const reachedTarget = !maintenanceMode && refedScaleKg <= targetWeightKg;
+
+    if (reachedTarget) {
+      maintenanceMode = true;
+      let maintenanceGuess = Math.round(tee);
+      if (!Number.isFinite(maintenanceGuess) || maintenanceGuess <= 0) {
+        maintenanceGuess = Math.round(profile.defaultCalories);
+      }
+      for (let j = 0; j < 2; j += 1) {
+        const maintenanceBmrIteration = calculateBmr(profile, projectedFastedMass, maintenanceGuess, weightLossFromStart);
+        const maintenanceTeeIteration = maintenanceBmrIteration * ACTIVITY_FACTORS[activityLevel];
+        maintenanceGuess = Math.round(maintenanceTeeIteration);
+      }
+      maintenanceCalories = Math.max(1100, maintenanceGuess);
+      calories = maintenanceCalories;
+      bmr = calculateBmr(profile, projectedFastedMass, calories, weightLossFromStart);
+      tee = bmr * ACTIVITY_FACTORS[activityLevel];
+      deficit = tee - calories;
+      tissueDeltaKg = 0;
+      fastedFraction = computeFastedWaterFraction(deficit, calories);
+      fastedScaleKg = projectedFastedMass + buffer * fastedFraction;
+      refedScaleKg = projectedFastedMass + buffer;
+      maintenanceStabilityCounter = 0;
+    } else if (maintenanceMode && maintenanceCalories !== null) {
+      calories = maintenanceCalories;
+      tissueDeltaKg = 0;
+      projectedFastedMass = Math.max(35, previousFastedMass);
+      bmr = calculateBmr(profile, projectedFastedMass, calories, weightLossFromStart);
+      tee = bmr * ACTIVITY_FACTORS[activityLevel];
+      deficit = tee - calories;
+      fastedFraction = computeFastedWaterFraction(deficit, calories);
+      fastedScaleKg = projectedFastedMass + buffer * fastedFraction;
+      refedScaleKg = projectedFastedMass + buffer;
     }
 
     previousFastedMass = projectedFastedMass;
@@ -195,7 +235,20 @@ export function generateProjections(state: AppState, horizonDays = 365): Project
       measurementFasted
     });
 
+    if (maintenanceMode) {
+      const waterGap = Math.abs(fastedScaleKg - refedScaleKg);
+      if (waterGap < 0.05) {
+        maintenanceStabilityCounter += 1;
+      } else {
+        maintenanceStabilityCounter = 0;
+      }
+    }
+
     if (differenceInCalendarDays(date, new Date()) > 730) {
+      break;
+    }
+
+    if (maintenanceMode && maintenanceStabilityCounter >= 2) {
       break;
     }
   }

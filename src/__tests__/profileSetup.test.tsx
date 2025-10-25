@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen, waitFor } from '../test-utils';
 import { renderWithProviders } from '../test-utils';
 import ProfileSetup from '../components/ProfileSetup';
+import { feetInchesToCentimeters, poundsToKilograms } from '../utils/conversions';
 
 describe('ProfileSetup', () => {
   beforeEach(() => {
@@ -17,6 +18,9 @@ describe('ProfileSetup', () => {
 
     const weightInput = screen.getByLabelText<HTMLInputElement>(/starting weight/i);
     expect(weightInput).toHaveValue(265);
+
+    const startDateInput = screen.getByLabelText<HTMLInputElement>(/diet start date/i);
+    expect(startDateInput).toHaveValue('2025-10-17');
 
     const goalSelect = screen.getByLabelText<HTMLSelectElement>(/fitness goal/i);
     expect(goalSelect).toHaveValue('alpinist-ready');
@@ -49,5 +53,25 @@ describe('ProfileSetup', () => {
       goal: 'alpinist-ready',
       defaultCalories: 800
     });
+  });
+
+  it('renders embedded variant copy when profile exists', () => {
+    const profile = {
+      unitSystem: 'imperial' as const,
+      startDate: '2025-10-17',
+      startWeightKg: poundsToKilograms(220),
+      heightCm: feetInchesToCentimeters(5, 10),
+      age: 40,
+      sex: 'female' as const,
+      goal: 'feel-great' as const,
+      defaultCalories: 900,
+      defaultActivityLevel: 'light' as const
+    };
+    renderWithProviders(<ProfileSetup variant="embedded" />, {
+      initialState: { profile, plans: {}, measurements: {} }
+    });
+
+    expect(screen.getByRole('heading', { name: /adjust your profile/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /save profile changes/i })).toBeInTheDocument();
   });
 });

@@ -57,4 +57,17 @@ describe('generateProjections', () => {
     expect(dayTwo).toBeDefined();
     expect(dayTwo?.deficit).toBeLessThan(0);
   });
+
+  it('switches to maintenance calories after reaching the target and stops once water equalizes', () => {
+    const state: AppState = { profile, plans: {}, measurements: {} };
+    const result = generateProjections(state, 800);
+    const targetIndex = result.projections.findIndex((entry) => entry.refedScaleKg <= result.targetWeightKg);
+    expect(targetIndex).toBeGreaterThanOrEqual(0);
+    const maintenanceDay = result.projections[targetIndex];
+    expect(Math.abs(maintenanceDay.deficit)).toBeLessThan(80);
+    expect(maintenanceDay.calories).toBeGreaterThan(maintenanceDay.deficit);
+    const finalDay = result.projections[result.projections.length - 1];
+    expect(Math.abs(finalDay.fastedScaleKg - finalDay.refedScaleKg)).toBeLessThan(0.06);
+    expect(result.projections.length).toBeLessThan(500);
+  });
 });

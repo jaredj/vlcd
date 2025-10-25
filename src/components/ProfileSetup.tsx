@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import type { JSX } from 'react';
-import { formatISO } from 'date-fns';
 import { getGoalInfo, GOALS } from '../lib/goals';
 import { useAppState } from '../lib/state';
 import { ACTIVITY_LABELS } from '../lib/activity';
@@ -21,6 +20,7 @@ const DEFAULT_HEIGHT_CM = feetInchesToCentimeters(DEFAULT_HEIGHT_FEET, DEFAULT_H
 const DEFAULT_CALORIES = 800;
 const DEFAULT_AGE = 44;
 const DEFAULT_GOAL: FitnessGoal = 'alpinist-ready';
+const DEFAULT_START_DATE = '2025-10-17';
 
 interface FormState {
   unitSystem: UnitSystem;
@@ -38,9 +38,10 @@ interface FormState {
 
 interface ProfileSetupProps {
   onComplete?: () => void;
+  variant?: 'standalone' | 'embedded';
 }
 
-export default function ProfileSetup({ onComplete }: ProfileSetupProps): JSX.Element {
+export default function ProfileSetup({ onComplete, variant = 'standalone' }: ProfileSetupProps): JSX.Element {
   const { state, setProfile } = useAppState();
   const existingProfile = state.profile;
 
@@ -67,7 +68,7 @@ export default function ProfileSetup({ onComplete }: ProfileSetupProps): JSX.Ele
 
     return {
       unitSystem: 'imperial',
-      startDate: formatISO(new Date(), { representation: 'date' }),
+      startDate: DEFAULT_START_DATE,
       startWeight: DEFAULT_START_WEIGHT_LB,
       heightFeet: DEFAULT_HEIGHT_FEET,
       heightInches: DEFAULT_HEIGHT_INCHES,
@@ -132,13 +133,24 @@ export default function ProfileSetup({ onComplete }: ProfileSetupProps): JSX.Ele
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  const ContainerTag = (variant === 'embedded' ? 'div' : 'section') as 'div' | 'section';
+  const HeadingTag = (variant === 'embedded' ? 'h3' : 'h2') as 'h2' | 'h3';
+  const headingText = existingProfile
+    ? variant === 'embedded'
+      ? 'Adjust your profile'
+      : 'Update your profile'
+    : variant === 'embedded'
+      ? 'Set up your profile'
+      : 'Create your VLCD profile';
+  const introText =
+    variant === 'embedded'
+      ? 'Tweak any of your baseline assumptions. Updates save when you submit the form.'
+      : 'We will use your personal data to estimate a realistic target weight and chart how a very-low-calorie dietary approach is likely to evolve.';
+
   return (
-    <section>
-      <h2>{existingProfile ? 'Update your profile' : 'Create your VLCD profile'}</h2>
-      <p>
-        We will use your personal data to estimate a realistic target weight and chart how a very-low-calorie
-        dietary approach is likely to evolve.
-      </p>
+    <ContainerTag className={variant === 'embedded' ? 'profile-setup-embedded' : undefined}>
+      <HeadingTag>{headingText}</HeadingTag>
+      <p>{introText}</p>
       <form onSubmit={handleSubmit} className="grid two-columns">
         <label>
           Units
@@ -266,9 +278,9 @@ export default function ProfileSetup({ onComplete }: ProfileSetupProps): JSX.Ele
           <small>{goalInfo.description}</small>
         </div>
         <div>
-          <button type="submit">{existingProfile ? 'Update profile' : 'Save profile'}</button>
+          <button type="submit">{existingProfile ? 'Save profile changes' : 'Save profile'}</button>
         </div>
       </form>
-    </section>
+    </ContainerTag>
   );
 }
