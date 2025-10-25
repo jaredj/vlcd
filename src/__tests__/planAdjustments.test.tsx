@@ -1,10 +1,10 @@
 import React from 'react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { format, parseISO } from 'date-fns';
 import { fireEvent, renderWithProviders, screen, waitFor } from '../test-utils';
 import PlanAdjustments from '../components/PlanAdjustments';
 import { generateProjections } from '../lib/modeling';
-import type { AppState, Profile } from '../types';
+import type { AppState, DailyProjection, Profile } from '../types';
 import { feetInchesToCentimeters, poundsToKilograms } from '../utils/conversions';
 
 describe('PlanAdjustments', () => {
@@ -93,7 +93,7 @@ describe('PlanAdjustments', () => {
     expect(screen.getByText(/medical supervision required/i)).toBeInTheDocument();
   });
 
-  it('labels days based on whether they are past, today, or future', () => {
+  it('visually distinguishes past, present, and future days', () => {
     const profile: Profile = {
       unitSystem: 'imperial',
       startDate: '2025-10-17',
@@ -113,11 +113,53 @@ describe('PlanAdjustments', () => {
       { initialState }
     );
 
-    const pastBadges = screen.getAllByText('Past');
-    expect(pastBadges.length).toBeGreaterThan(0);
-    expect(screen.getByText('Today')).toBeInTheDocument();
-    const futureBadges = screen.getAllByText('Future');
-    expect(futureBadges.length).toBeGreaterThan(0);
+    const rows = screen.getAllByRole('row');
+    const dataRows = rows.slice(1);
+    expect(dataRows.some((row) => row.classList.contains('plan-row-past'))).toBe(true);
+
+    const todayRow = screen.getByRole('row', { current: 'date' });
+    expect(todayRow).toHaveClass('plan-row-today');
+    expect(todayRow).toHaveAttribute('aria-current', 'date');
+
+    expect(dataRows.some((row) => row.classList.contains('plan-row-future'))).toBe(true);
+  });
+
+  it('scrolls the table to today when supported by the browser', async () => {
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+    const scrollSpy = vi.fn();
+    (HTMLElement.prototype as unknown as { scrollIntoView: () => void }).scrollIntoView = scrollSpy;
+
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const projections: DailyProjection[] = [
+      {
+        date: today,
+        calories: 1200,
+        activityLevel: 'minimal',
+        bmr: 1500,
+        tee: 1800,
+        deficit: -600,
+        fastedWeightKg: 90,
+        fastedScaleKg: 90,
+        refedScaleKg: 90,
+        isMeasurement: false
+      }
+    ];
+
+    try {
+      renderWithProviders(<PlanAdjustments projections={projections} unit="imperial" />, {
+        initialState: { profile: null, plans: {}, measurements: {} }
+      });
+
+      await waitFor(() => {
+        expect(scrollSpy).toHaveBeenCalled();
+      });
+    } finally {
+      if (originalScrollIntoView) {
+        HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
+      } else {
+        delete (HTMLElement.prototype as { scrollIntoView?: () => void }).scrollIntoView;
+      }
+    }
   });
 
   it(

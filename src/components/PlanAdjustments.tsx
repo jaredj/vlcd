@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import type { JSX } from 'react';
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { useAppState } from '../lib/state';
@@ -46,6 +46,23 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
       .filter((date): date is string => Boolean(date));
   }, [minimumSafeCalories, upcoming, state.plans]);
 
+  const todayRowRef = useRef<HTMLTableRowElement | null>(null);
+  const hasScrolledToToday = useRef(false);
+
+  useEffect(() => {
+    if (hasScrolledToToday.current) {
+      return;
+    }
+
+    if (todayRowRef.current) {
+      const element = todayRowRef.current;
+      if (typeof element.scrollIntoView === 'function') {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      hasScrolledToToday.current = true;
+    }
+  }, [upcoming]);
+
   if (!upcoming.length) {
     return <p>Projections are not available yet.</p>;
   }
@@ -64,7 +81,6 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
           <thead>
             <tr>
               <th>Date</th>
-              <th>Status</th>
               <th>Calories</th>
               <th>Activity</th>
               <th>Fasted scale</th>
@@ -77,15 +93,16 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
               const custom = state.plans[day.date];
               const dayDate = parseISO(day.date);
               const delta = differenceInCalendarDays(dayDate, today);
-              const statusLabel = delta < 0 ? 'Past' : delta === 0 ? 'Today' : 'Future';
               const rowClassName =
                 delta < 0 ? 'plan-row plan-row-past' : delta === 0 ? 'plan-row plan-row-today' : 'plan-row plan-row-future';
               return (
-                <tr key={day.date} className={rowClassName}>
+                <tr
+                  key={day.date}
+                  className={rowClassName}
+                  ref={delta === 0 ? todayRowRef : undefined}
+                  aria-current={delta === 0 ? 'date' : undefined}
+                >
                   <td>{format(parseISO(day.date), 'MMM d')}</td>
-                  <td>
-                    <span className={`status-badge status-${statusLabel.toLowerCase()}`}>{statusLabel}</span>
-                  </td>
                   <td>
                     <input
                       type="number"
