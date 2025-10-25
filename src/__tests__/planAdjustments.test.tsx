@@ -33,8 +33,11 @@ describe('PlanAdjustments', () => {
       { initialState }
     );
 
+    const editButton = screen.getByRole('button', { name: `Edit calories for ${targetDate}` });
+    fireEvent.click(editButton);
     const caloriesInput = screen.getByLabelText<HTMLInputElement>(`Calories for ${targetDate}`);
     fireEvent.change(caloriesInput, { target: { value: '950' } });
+    fireEvent.blur(caloriesInput);
 
     await waitFor(() => {
       const stored = JSON.parse(window.localStorage.getItem('vlcd-app-state-v1') ?? '{}') as {

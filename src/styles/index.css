@@ -82,6 +82,123 @@ th {
   border-bottom: 1px solid #e2e8f0;
 }
 
+.date-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.status-pill-past {
+  background-color: #e2e8f0;
+  color: #475569;
+}
+
+.status-pill-today {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-pill-future {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.day-row.day-past td {
+  background-color: #f8fafc;
+}
+
+.day-row.day-today td {
+  background-color: #eef2ff;
+}
+
+.value-cell {
+  display: flex;
+  align-items: center;
+}
+
+.inline-input {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.95rem;
+}
+
+button.value-button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+button.value-button:hover:not(:disabled) {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+button.value-button:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.value-primary {
+  display: block;
+  font-weight: 600;
+}
+
+.value-meta {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.75rem;
+  color: #64748b;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+button.secondary {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  padding: 0.45rem 0.85rem;
+}
+
+button.secondary:hover {
+  background-color: #dbeafe;
+}
+
+button.ghost {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2563eb;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.ghost:hover {
+  text-decoration: underline;
+  background: none;
+}
+
 .badge {
   display: inline-block;
   padding: 0.25rem 0.75rem;

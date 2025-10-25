@@ -26,50 +26,62 @@ export function AppStateProvider({ children, initialState }: AppStateProviderPro
 
   const value = useMemo<AppContextValue>(() => {
     function setProfile(profile: Profile) {
-      setState({
-        profile,
-        plans: state.plans,
-        measurements: state.measurements
-      });
+      setState((prev) => ({
+        ...prev,
+        profile
+      }));
     }
 
     function updatePlan(dateIso: string, updates: Partial<DayPlan>) {
-      if (!state.profile) return;
-      setState({
-        ...state,
-        plans: {
-          ...state.plans,
-          [dateIso]: {
-            ...state.plans[dateIso],
-            date: dateIso,
-            ...updates
-          }
+      setState((prev) => {
+        if (!prev.profile) {
+          return prev;
         }
+        const existing = prev.plans[dateIso] ?? { date: dateIso };
+        return {
+          ...prev,
+          plans: {
+            ...prev.plans,
+            [dateIso]: {
+              ...existing,
+              date: dateIso,
+              ...updates
+            }
+          }
+        };
       });
     }
 
     function removePlan(dateIso: string) {
-      if (!state.plans[dateIso]) return;
-      const updatedPlans = { ...state.plans };
-      delete updatedPlans[dateIso];
-      setState({ ...state, plans: updatedPlans });
-    }
-
-    function recordMeasurement(measurement: DailyMeasurement) {
-      setState({
-        ...state,
-        measurements: {
-          ...state.measurements,
-          [measurement.date]: measurement
+      setState((prev) => {
+        if (!prev.plans[dateIso]) {
+          return prev;
         }
+        const updatedPlans = { ...prev.plans };
+        delete updatedPlans[dateIso];
+        return { ...prev, plans: updatedPlans };
       });
     }
 
+    function recordMeasurement(measurement: DailyMeasurement) {
+      setState((prev) => ({
+        ...prev,
+        measurements: {
+          ...prev.measurements,
+          [measurement.date]: measurement
+        }
+      }));
+    }
+
     function removeMeasurement(dateIso: string) {
-      if (!state.measurements[dateIso]) return;
-      const updatedMeasurements = { ...state.measurements };
-      delete updatedMeasurements[dateIso];
-      setState({ ...state, measurements: updatedMeasurements });
+      setState((prev) => {
+        if (!prev.measurements[dateIso]) {
+          return prev;
+        }
+        const updatedMeasurements = { ...prev.measurements };
+        delete updatedMeasurements[dateIso];
+        return { ...prev, measurements: updatedMeasurements };
+      });
     }
 
     function reset() {

@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import type { JSX } from 'react';
-import { formatISO } from 'date-fns';
 import { getGoalInfo, GOALS } from '../lib/goals';
 import { useAppState } from '../lib/state';
 import { ACTIVITY_LABELS } from '../lib/activity';
@@ -21,6 +20,7 @@ const DEFAULT_HEIGHT_CM = feetInchesToCentimeters(DEFAULT_HEIGHT_FEET, DEFAULT_H
 const DEFAULT_CALORIES = 800;
 const DEFAULT_AGE = 44;
 const DEFAULT_GOAL: FitnessGoal = 'alpinist-ready';
+const DEFAULT_START_DATE = '2025-10-17';
 
 interface FormState {
   unitSystem: UnitSystem;
@@ -67,7 +67,7 @@ export default function ProfileSetup({ onComplete }: ProfileSetupProps): JSX.Ele
 
     return {
       unitSystem: 'imperial',
-      startDate: formatISO(new Date(), { representation: 'date' }),
+      startDate: DEFAULT_START_DATE,
       startWeight: DEFAULT_START_WEIGHT_LB,
       heightFeet: DEFAULT_HEIGHT_FEET,
       heightInches: DEFAULT_HEIGHT_INCHES,
