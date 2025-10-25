@@ -8,7 +8,7 @@ import testingLibraryPlugin from 'eslint-plugin-testing-library';
 
 export default [
   {
-    ignores: ['dist', 'node_modules', 'vite.config.d.ts']
+    ignores: ['dist', 'node_modules', 'vite.config.d.ts', 'coverage']
   },
   {
     files: ['src/**/*.{ts,tsx}', 'vitest.setup.ts'],
