@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -12,6 +12,8 @@ const repoRoot = process.cwd();
 const baseRef = process.env.COVERAGE_BASE_REF || 'origin/main';
 const skipBase = process.env.COVERAGE_SKIP_BASE === '1';
 const headSummaryEnv = process.env.COVERAGE_HEAD_SUMMARY;
+const reportPath = process.env.COVERAGE_REPORT_PATH;
+const stepSummaryPath = process.env.GITHUB_STEP_SUMMARY;
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -134,6 +136,43 @@ function formatRegression({ file, metric, base, head }) {
   return `${file} ${metric} coverage regressed from ${toPct(base)} to ${toPct(head)}`;
 }
 
+function formatDelta(base, head) {
+  const delta = head - base;
+  if (Math.abs(delta) < epsilon) {
+    return '0.00%';
+  }
+
+  const sign = delta > 0 ? '+' : '';
+  return `${sign}${delta.toFixed(2)}%`;
+}
+
+function buildCoverageSummary(base, head, regressions) {
+  const capitalise = (value) => value.charAt(0).toUpperCase() + value.slice(1);
+  const toPct = (value) => `${value.toFixed(2)}%`;
+  const lines = ['## Coverage Comparison', '', '| Metric | Base | PR | Δ |', '| --- | ---: | ---: | ---: |'];
+
+  for (const metric of metrics) {
+    const basePct = base.total?.[metric]?.pct ?? 0;
+    const headPct = head.total?.[metric]?.pct ?? 0;
+    lines.push(
+      `| ${capitalise(metric)} | ${toPct(basePct)} | ${toPct(headPct)} | ${formatDelta(basePct, headPct)} |`
+    );
+  }
+
+  lines.push('');
+
+  if (regressions.length === 0) {
+    lines.push('✅ No coverage regressions detected.');
+  } else {
+    lines.push('⚠️ Coverage regressions detected:', '');
+    for (const regression of regressions) {
+      lines.push(`- ${formatRegression(regression)}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
 let baseSummary;
 let baseWorktree;
 
@@ -178,12 +217,19 @@ if (!baseSummary) {
 }
 
 const regressions = compareCoverage(baseSummary, headSummary);
+const summary = buildCoverageSummary(baseSummary, headSummary, regressions);
+
+console.log(`\n${summary}\n`);
+
+if (reportPath) {
+  writeFileSync(reportPath, `${summary}\n`, 'utf8');
+}
+
+if (stepSummaryPath) {
+  appendFileSync(stepSummaryPath, `${summary}\n`, 'utf8');
+}
 
 if (regressions.length > 0) {
-  console.error('\nCoverage regression detected:');
-  for (const regression of regressions) {
-    console.error(`  - ${formatRegression(regression)}`);
-  }
   process.exit(1);
 }
 
