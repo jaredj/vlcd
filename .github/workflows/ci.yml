@@ -66,7 +66,17 @@ jobs:
 
       - name: Test
         if: needs.changes.outputs.run_ci == 'true'
+        env:
+          COVERAGE_SKIP_BASE: '1'
         run: npm run test -- --coverage
+
+      - name: Upload coverage summary
+        if: needs.changes.outputs.run_ci == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summary
+          path: coverage/coverage-summary.json
+          if-no-files-found: error
 
       - name: Build
         if: needs.changes.outputs.run_ci == 'true'
@@ -88,3 +98,32 @@ jobs:
         run: |
           echo "CI build, lint, and test steps skipped because only documentation or metadata files changed."
           echo "CI build, lint, and test steps skipped because only documentation or metadata files changed." >> "$GITHUB_STEP_SUMMARY"
+
+  coverage-comparison:
+    needs:
+      - changes
+      - build-and-test
+    if: needs.changes.outputs.run_ci == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download coverage summary
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-summary
+          path: coverage-summary
+
+      - name: Compare coverage against base branch
+        env:
+          COVERAGE_BASE_REF: origin/${{ github.base_ref }}
+          COVERAGE_HEAD_SUMMARY: coverage-summary/coverage-summary.json
+        run: npm run test

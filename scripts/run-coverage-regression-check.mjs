@@ -11,6 +11,7 @@ const epsilon = 1e-6;
 const repoRoot = process.cwd();
 const baseRef = process.env.COVERAGE_BASE_REF || 'origin/main';
 const skipBase = process.env.COVERAGE_SKIP_BASE === '1';
+const headSummaryEnv = process.env.COVERAGE_HEAD_SUMMARY;
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -155,7 +156,21 @@ if (!skipBase) {
   console.warn('COVERAGE_SKIP_BASE=1 set, skipping regression comparison.');
 }
 
-const headSummary = ensureCoverageSummary(repoRoot);
+let headSummary;
+
+if (headSummaryEnv) {
+  const resolvedPath = path.isAbsolute(headSummaryEnv)
+    ? headSummaryEnv
+    : path.join(repoRoot, headSummaryEnv);
+
+  if (!existsSync(resolvedPath)) {
+    throw new Error(`Head coverage summary not found at ${resolvedPath}`);
+  }
+
+  headSummary = readCoverageSummary(resolvedPath, repoRoot);
+} else {
+  headSummary = ensureCoverageSummary(repoRoot);
+}
 
 if (!baseSummary) {
   console.log('Base coverage not generated; skipping regression check.');
