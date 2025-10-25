@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import type { JSX } from 'react';
 import { getGoalInfo, GOALS } from '../lib/goals';
 import { ACTIVITY_LABELS } from '../lib/activity';
@@ -41,6 +41,7 @@ export interface ProfileFormProps {
   onSubmit: (profile: Profile) => void;
   submitLabel: string;
   onAfterSubmit?: () => void;
+  autoSubmit?: boolean;
 }
 
 function createInitialState(profile: Profile | null): FormState {
@@ -76,11 +77,21 @@ function createInitialState(profile: Profile | null): FormState {
   };
 }
 
-export default function ProfileForm({ profile, onSubmit, submitLabel, onAfterSubmit }: ProfileFormProps): JSX.Element {
+export default function ProfileForm({
+  profile,
+  onSubmit,
+  submitLabel,
+  onAfterSubmit,
+  autoSubmit = false
+}: ProfileFormProps): JSX.Element {
   const [form, setForm] = useState<FormState>(() => createInitialState(profile));
+  const lastSubmitted = useRef<string | null>(null);
 
   useEffect(() => {
-    setForm(createInitialState(profile));
+    startTransition(() => {
+      setForm(createInitialState(profile));
+    });
+    lastSubmitted.current = null;
   }, [profile]);
 
   const { heightCm, weightKg } = useMemo(() => {
@@ -90,6 +101,21 @@ export default function ProfileForm({ profile, onSubmit, submitLabel, onAfterSub
 
     return { heightCm: nextHeightCm, weightKg: nextWeightKg };
   }, [form.heightCm, form.heightFeet, form.heightInches, form.startWeight, form.unitSystem]);
+
+  const normalizedProfile: Profile = useMemo(
+    () => ({
+      unitSystem: form.unitSystem,
+      startDate: form.startDate,
+      startWeightKg: weightKg,
+      heightCm,
+      age: form.age,
+      sex: form.sex,
+      goal: form.goal,
+      defaultCalories: form.defaultCalories,
+      defaultActivityLevel: form.defaultActivityLevel
+    }),
+    [form.age, form.defaultActivityLevel, form.defaultCalories, form.goal, form.sex, form.startDate, form.unitSystem, heightCm, weightKg]
+  );
 
   const profilePreviewBmi = bmi(weightKg, heightCm);
   const goalInfo = useMemo(() => getGoalInfo(form.goal), [form.goal]);
@@ -105,6 +131,24 @@ export default function ProfileForm({ profile, onSubmit, submitLabel, onAfterSub
     [form.age, form.sex, heightCm, weightKg]
   );
   const isBelowMinimum = form.defaultCalories < minimumSafeCalories;
+  const canAutoSubmit =
+    Boolean(form.startDate) &&
+    weightKg > 0 &&
+    heightCm > 0 &&
+    form.age >= 18 &&
+    form.defaultCalories > 0;
+
+  useEffect(() => {
+    if (!autoSubmit || !canAutoSubmit) {
+      return;
+    }
+    const serialized = JSON.stringify(normalizedProfile);
+    if (lastSubmitted.current === serialized) {
+      return;
+    }
+    onSubmit(normalizedProfile);
+    lastSubmitted.current = serialized;
+  }, [autoSubmit, canAutoSubmit, normalizedProfile, onSubmit]);
 
   function handleUnitChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const unit = event.target.value as UnitSystem;
@@ -137,17 +181,6 @@ export default function ProfileForm({ profile, onSubmit, submitLabel, onAfterSub
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalizedProfile: Profile = {
-      unitSystem: form.unitSystem,
-      startDate: form.startDate,
-      startWeightKg: weightKg,
-      heightCm,
-      age: form.age,
-      sex: form.sex,
-      goal: form.goal,
-      defaultCalories: form.defaultCalories,
-      defaultActivityLevel: form.defaultActivityLevel
-    };
     onSubmit(normalizedProfile);
     onAfterSubmit?.();
   }
@@ -298,9 +331,11 @@ export default function ProfileForm({ profile, onSubmit, submitLabel, onAfterSub
         </p>
         <small>{goalInfo.description}</small>
       </div>
-      <div>
-        <button type="submit">{submitLabel}</button>
-      </div>
+      {!autoSubmit && (
+        <div>
+          <button type="submit">{submitLabel}</button>
+        </div>
+      )}
     </form>
   );
 }
