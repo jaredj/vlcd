@@ -1,16 +1,14 @@
 import React, { useMemo } from 'react';
 import type { JSX } from 'react';
-import type { EChartsOption } from 'echarts';
+import type {
+  DefaultLabelFormatterCallbackParams,
+  EChartsOption,
+  TooltipComponentFormatterCallbackParams,
+  TooltipComponentOption
+} from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import type { DailyProjection, UnitSystem } from '../types';
 import { POUNDS_PER_KILOGRAM, formatWeight, kilogramsToPounds } from '../utils/conversions';
-
-interface TooltipDatum {
-  axisValue?: string | number;
-  marker?: string;
-  seriesName?: string;
-  value?: unknown;
-}
 
 interface ProjectionChartProps {
   data: DailyProjection[];
@@ -45,18 +43,32 @@ export default function ProjectionChart({ data, unit }: ProjectionChartProps): J
       return formatWeight(valueKg, unit, 1);
     };
 
-    const tooltipFormatter = (paramsInput: TooltipDatum | TooltipDatum[] | undefined): string => {
-      const params = Array.isArray(paramsInput)
+    type TooltipItemParams = DefaultLabelFormatterCallbackParams & { axisValue?: string | number };
+
+    const toArray = (
+      paramsInput: TooltipComponentFormatterCallbackParams
+    ): TooltipItemParams[] =>
+      (Array.isArray(paramsInput)
         ? paramsInput
-        : paramsInput
-          ? [paramsInput]
-          : [];
+        : [paramsInput]) as TooltipItemParams[];
+
+    const tooltipFormatter: TooltipComponentOption['formatter'] = (
+      paramsInput
+    ): string => {
+      const params = toArray(paramsInput);
+
       if (!params.length) {
         return '';
       }
 
-      const axisValue = params[0]?.axisValue;
-      const dateLabel = typeof axisValue === 'string' ? axisValue : String(axisValue ?? '');
+      const firstParam = params[0];
+      const axisValue = firstParam?.axisValue;
+      const dateLabel =
+        typeof axisValue === 'string'
+          ? axisValue
+          : typeof axisValue === 'number'
+            ? String(axisValue)
+            : firstParam?.name ?? '';
 
       const lines = params
         .map((param) => {
@@ -65,7 +77,11 @@ export default function ProjectionChart({ data, unit }: ProjectionChartProps): J
           if (numericValue === null || Number.isNaN(numericValue)) {
             return null;
           }
-          const marker = param.marker ?? '';
+          const markerValue = param.marker;
+          const marker =
+            typeof markerValue === 'string'
+              ? markerValue
+              : markerValue?.content ?? '';
           const label = param.seriesName ?? '';
           return `${marker}${label}: ${formatTooltipValue(numericValue)}`;
         })

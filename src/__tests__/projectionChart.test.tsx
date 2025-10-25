@@ -1,19 +1,16 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EChartsOption } from 'echarts';
+import type {
+  EChartsOption,
+  TooltipComponentFormatterCallbackParams,
+  TooltipComponentOption
+} from 'echarts';
 import { render, screen } from '../test-utils';
 import ProjectionChart from '../components/ProjectionChart';
 import type { DailyProjection } from '../types';
 import { kilogramsToPounds } from '../utils/conversions';
 
 const optionSpy = vi.fn();
-
-interface TooltipArgs {
-  axisValue?: string | number;
-  marker?: string;
-  seriesName?: string;
-  value?: unknown;
-}
 
 vi.mock('echarts-for-react', () => ({
   __esModule: true,
@@ -69,11 +66,26 @@ const sampleData: DailyProjection[] = [
 ];
 
 function getLatestOption(): EChartsOption {
-  const latestCall = optionSpy.mock.calls.at(-1);
+  const calls = optionSpy.mock.calls;
+  const latestCall = calls[calls.length - 1];
   expect(latestCall).toBeDefined();
   const [option] = latestCall ?? [];
   expect(option).toBeDefined();
   return option as EChartsOption;
+}
+
+function runTooltipFormatter(
+  tooltipOption: TooltipComponentOption | TooltipComponentOption[] | undefined,
+  params: TooltipComponentFormatterCallbackParams
+): string {
+  const tooltipConfig = Array.isArray(tooltipOption) ? tooltipOption[0] : tooltipOption;
+  expect(tooltipConfig).toBeDefined();
+  const formatter = tooltipConfig?.formatter;
+  expect(typeof formatter).toBe('function');
+  const result = (formatter as (value: TooltipComponentFormatterCallbackParams) => string | string[])(
+    params
+  );
+  return Array.isArray(result) ? result.join('') : result;
 }
 
 describe('ProjectionChart', () => {
@@ -116,15 +128,19 @@ describe('ProjectionChart', () => {
     expect(xAxis.axisLabel.formatter(20250103)).toBe('103');
     expect(yAxis.axisLabel.formatter(84)).toBe('84 kg');
 
-    const tooltip = option.tooltip as {
-      formatter: (params: TooltipArgs[] | TooltipArgs) => string;
-    };
-
-    const tooltipHtml = tooltip.formatter([
-      { axisValue: '2025-01-01', marker: '● ', seriesName: 'Refed scale', value: 84 },
-      { axisValue: '2025-01-01', marker: '● ', seriesName: 'Recorded measurement', value: 84.2 },
-      { axisValue: '2025-01-01', marker: '● ', seriesName: 'Empty', value: null }
-    ]);
+    const tooltipHtml = runTooltipFormatter(
+      option.tooltip as TooltipComponentOption,
+      [
+        { axisValue: '2025-01-01', marker: '● ', seriesName: 'Refed scale', value: 84 },
+        {
+          axisValue: '2025-01-01',
+          marker: '● ',
+          seriesName: 'Recorded measurement',
+          value: 84.2
+        },
+        { axisValue: '2025-01-01', marker: '● ', seriesName: 'Empty', value: null }
+      ] as unknown as TooltipComponentFormatterCallbackParams
+    );
 
     expect(tooltipHtml).toContain('<strong>2025-01-01</strong>');
     expect(tooltipHtml).toContain('Refed scale');
@@ -144,15 +160,19 @@ describe('ProjectionChart', () => {
     expect(series[1].data[1]).toBeCloseTo(kilogramsToPounds(82.6));
     expect(series[2].data[1]).toBeNull();
 
-    const tooltip = option.tooltip as {
-      formatter: (params: TooltipArgs[] | TooltipArgs) => string;
-    };
-
     const poundsValue = kilogramsToPounds(82.6);
-    const tooltipHtml = tooltip.formatter([
-      { axisValue: '2025-01-02', marker: '• ', seriesName: 'Fasted scale', value: poundsValue },
-      { axisValue: '2025-01-02', marker: '• ', seriesName: 'Recorded measurement', value: null }
-    ]);
+    const tooltipHtml = runTooltipFormatter(
+      option.tooltip as TooltipComponentOption,
+      [
+        {
+          axisValue: '2025-01-02',
+          marker: '• ',
+          seriesName: 'Fasted scale',
+          value: poundsValue
+        },
+        { axisValue: '2025-01-02', marker: '• ', seriesName: 'Recorded measurement', value: null }
+      ] as unknown as TooltipComponentFormatterCallbackParams
+    );
 
     expect(tooltipHtml).toContain('Fasted scale');
     expect(tooltipHtml).toContain('lb');
