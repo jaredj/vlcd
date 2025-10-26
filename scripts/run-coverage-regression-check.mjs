@@ -9,11 +9,97 @@ import { execSync, spawnSync } from 'node:child_process';
 const metrics = ['lines', 'statements', 'branches', 'functions'];
 const epsilon = 1e-6;
 const repoRoot = process.cwd();
-const baseRef = process.env.COVERAGE_BASE_REF || 'origin/main';
-const skipBase = process.env.COVERAGE_SKIP_BASE === '1';
-const headSummaryEnv = process.env.COVERAGE_HEAD_SUMMARY;
+
+const {
+  vitestArgs,
+  skipBase,
+  baseRef,
+  fallbackRef,
+  headSummaryPath,
+  showHelp,
+} = parseArgs(process.argv.slice(2));
+
+if (showHelp) {
+  printHelp();
+  process.exit(0);
+}
+
 const reportPath = process.env.COVERAGE_REPORT_PATH;
 const stepSummaryPath = process.env.GITHUB_STEP_SUMMARY;
+
+const headSummaryEnv = headSummaryPath ?? process.env.COVERAGE_HEAD_SUMMARY;
+
+function parseArgs(args) {
+  let skipBase = process.env.COVERAGE_SKIP_BASE === '1';
+  let baseRef = process.env.COVERAGE_BASE_REF || 'origin/main';
+  let fallbackRef = process.env.COVERAGE_FALLBACK_REF || 'HEAD^';
+  let headSummaryPath;
+  let showHelp = false;
+  const vitestArgs = [];
+
+  const requireValue = (flag, index) => {
+    const value = args[index + 1];
+    if (!value || value.startsWith('-')) {
+      throw new Error(`${flag} requires a value`);
+    }
+    return value;
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    switch (arg) {
+      case '--head-only':
+      case '--skip-base':
+        skipBase = true;
+        break;
+      case '--base-ref': {
+        baseRef = requireValue(arg, index);
+        index += 1;
+        break;
+      }
+      case '--fallback-ref': {
+        fallbackRef = requireValue(arg, index);
+        index += 1;
+        break;
+      }
+      case '--head-summary': {
+        headSummaryPath = requireValue(arg, index);
+        index += 1;
+        break;
+      }
+      case '--help':
+      case '-h':
+        showHelp = true;
+        break;
+      case '--':
+        vitestArgs.push(...args.slice(index + 1));
+        index = args.length;
+        break;
+      default:
+        vitestArgs.push(arg);
+        break;
+    }
+  }
+
+  return { vitestArgs, skipBase, baseRef, fallbackRef, headSummaryPath, showHelp };
+}
+
+function printHelp() {
+  console.log(`Usage: npm test [-- <vitest-args>]
+
+Options:
+  --head-only, --skip-base   Skip generating coverage for the comparison base.
+  --base-ref <ref>           Override the git ref used for the base comparison.
+  --fallback-ref <ref>       Override the fallback ref used when base is unavailable.
+  --head-summary <path>      Provide a pre-generated head coverage summary.
+  -h, --help                 Show this help message.
+
+Any remaining arguments are forwarded to "vitest run". Examples:
+  npm test -- --head-only                 # Skip the base and run all tests with coverage.
+  npm test -- --head-only src/foo.test.ts # Run coverage for a specific test file.
+  npm test -- --run tests --reporter=dot  # Pass custom flags directly to Vitest.
+`);
+}
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -31,14 +117,80 @@ function run(command, args, options = {}) {
   }
 }
 
+function normalizeVitestArgs(rawArgs) {
+  const sanitizedArgs = [];
+  const forwardedCoverageReporters = new Set();
+
+  const ensureValue = (flag, value) => {
+    if (!value || value.startsWith('-')) {
+      throw new Error(`${flag} requires a value`);
+    }
+    return value;
+  };
+
+  for (let index = 0; index < rawArgs.length; index += 1) {
+    const arg = rawArgs[index];
+
+    if (arg === '--no-coverage') {
+      throw new Error('Coverage must remain enabled when running the regression check. Remove "--no-coverage".');
+    }
+
+    if (arg === '--coverage') {
+      const next = rawArgs[index + 1];
+      if (next === 'false' || next === '0') {
+        throw new Error('Coverage must remain enabled when running the regression check. Remove "--coverage false".');
+      }
+      if (next === 'true' || next === '1') {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (arg.startsWith('--coverage=')) {
+      const [, value] = arg.split('=');
+      if (value === 'false' || value === '0') {
+        throw new Error('Coverage must remain enabled when running the regression check. Remove "--coverage=false".');
+      }
+      if (value === 'true' || value === '1' || value === undefined) {
+        continue;
+      }
+    }
+
+    if (arg === '--coverage.reporter') {
+      const value = ensureValue(arg, rawArgs[index + 1]);
+      forwardedCoverageReporters.add(value);
+      sanitizedArgs.push(arg, value);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith('--coverage.reporter=')) {
+      forwardedCoverageReporters.add(arg.split('=').slice(1).join('='));
+      sanitizedArgs.push(arg);
+      continue;
+    }
+
+    sanitizedArgs.push(arg);
+  }
+
+  return { sanitizedArgs, forwardedCoverageReporters };
+}
+
 function ensureCoverageSummary(cwd) {
   const coverageDir = path.join(cwd, 'coverage');
   rmSync(coverageDir, { recursive: true, force: true });
 
   const polyfillPath = path.join(cwd, 'scripts', 'test-polyfills.cjs');
+  const hasPolyfill = existsSync(polyfillPath);
   const inheritedNodeOptions = process.env.NODE_OPTIONS ?? '';
-  const polyfillOption = `--require=${polyfillPath}`;
+  const polyfillOption = hasPolyfill ? `--require=${polyfillPath}` : '';
   const nodeOptions = [inheritedNodeOptions, polyfillOption].filter(Boolean).join(' ').trim();
+  const { sanitizedArgs, forwardedCoverageReporters } = normalizeVitestArgs(vitestArgs);
+
+  const defaultCoverageReporters = ['text', 'lcov', 'json-summary'];
+  const coverageReporterArgs = defaultCoverageReporters
+    .filter((reporter) => !forwardedCoverageReporters.has(reporter))
+    .map((reporter) => `--coverage.reporter=${reporter}`);
 
   run(
     'npx',
@@ -46,9 +198,8 @@ function ensureCoverageSummary(cwd) {
       'vitest',
       'run',
       '--coverage',
-      '--coverage.reporter=text',
-      '--coverage.reporter=lcov',
-      '--coverage.reporter=json-summary',
+      ...coverageReporterArgs,
+      ...sanitizedArgs,
     ],
     { cwd, env: { NODE_OPTIONS: nodeOptions } }
   );
@@ -75,7 +226,7 @@ function readCoverageSummary(summaryPath, rootDir) {
   return { total: raw.total, files };
 }
 
-function ensureBaseRefAvailable(ref) {
+function ensureBaseRefAvailable(ref, fallbackRef) {
   try {
     execSync(`git rev-parse --verify ${ref}`, { stdio: 'ignore' });
     return ref;
@@ -87,7 +238,6 @@ function ensureBaseRefAvailable(ref) {
       execSync(`git rev-parse --verify ${ref}`, { stdio: 'ignore' });
       return ref;
     } catch (fetchError) {
-      const fallbackRef = process.env.COVERAGE_FALLBACK_REF || 'HEAD^';
       try {
         execSync(`git rev-parse --verify ${fallbackRef}`, { stdio: 'ignore' });
         console.warn(
@@ -182,7 +332,7 @@ let baseSummary;
 let baseWorktree;
 
 if (!skipBase) {
-  const effectiveBaseRef = ensureBaseRefAvailable(baseRef);
+  const effectiveBaseRef = ensureBaseRefAvailable(baseRef, fallbackRef);
   baseWorktree = mkdtempSync(path.join(tmpdir(), 'coverage-base-'));
   try {
     execSync(`git worktree add --force ${baseWorktree} ${effectiveBaseRef}`, { stdio: 'inherit' });

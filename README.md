@@ -54,6 +54,22 @@ npm run test
 Vitest with React Testing Library covers the profile workflow, modelling engine, and daily plan overrides. Coverage reports are
 emitted in `lcov` format for CI.
 
+When iterating locally you can focus on specific files or test patterns without running the full suite:
+
+```bash
+# Skip the base comparison to speed up local feedback
+npm run test -- --head-only
+
+# Generate coverage for a single test file
+npm run test -- --head-only src/path/to/file.test.ts
+
+# Forward arbitrary flags directly to Vitest
+npm run test -- --run "chart" --reporter=dot
+```
+
+All arguments passed after `--` are forwarded to `vitest run`, so any CLI filter supported by Vitest (file globs, test name
+patterns, reporters, and so on) can be used while still receiving a coverage report.
+
 ### Production build
 
 ```bash
