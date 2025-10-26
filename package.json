@@ -25,6 +25,7 @@
     "date-fns": "^4.1.0",
     "echarts": "^5.6.0",
     "echarts-for-react": "^3.0.2",
+    "firebase": "^11.10.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

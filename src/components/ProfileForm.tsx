@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { getGoalInfo, GOALS } from '../lib/goals';
 import { ACTIVITY_LABELS } from '../lib/activity';
 import type { FitnessGoal, Profile, Sex, UnitSystem } from '../types';
+import { getLastProfileName, setLastProfileName } from '../lib/storage';
 import {
   bmi,
   centimetersToFeetInches,
@@ -23,6 +24,7 @@ const DEFAULT_GOAL: FitnessGoal = 'alpinist-ready';
 const DEFAULT_START_DATE = '2025-10-17';
 
 interface FormState {
+  name: string;
   unitSystem: UnitSystem;
   startDate: string;
   startWeight: number;
@@ -47,9 +49,11 @@ export interface ProfileFormProps {
 }
 
 function createInitialState(profile: Profile | null): FormState {
+  const storedName = getLastProfileName() ?? '';
   if (profile) {
     const heightFeetInches = centimetersToFeetInches(profile.heightCm);
     return {
+      name: profile.name,
       unitSystem: profile.unitSystem,
       startDate: profile.startDate,
       startWeight: profile.unitSystem === 'imperial' ? kilogramsToPounds(profile.startWeightKg) : profile.startWeightKg,
@@ -65,6 +69,7 @@ function createInitialState(profile: Profile | null): FormState {
   }
 
   return {
+    name: storedName,
     unitSystem: 'imperial',
     startDate: DEFAULT_START_DATE,
     startWeight: DEFAULT_START_WEIGHT_LB,
@@ -129,6 +134,7 @@ export default function ProfileForm({
 
   const normalizedProfile: Profile = useMemo(
     () => ({
+      name: form.name.trim(),
       unitSystem: form.unitSystem,
       startDate: form.startDate,
       startWeightKg: weightKg,
@@ -139,7 +145,18 @@ export default function ProfileForm({
       defaultCalories: form.defaultCalories,
       defaultActivityLevel: form.defaultActivityLevel
     }),
-    [form.age, form.defaultActivityLevel, form.defaultCalories, form.goal, form.sex, form.startDate, form.unitSystem, heightCm, weightKg]
+    [
+      form.age,
+      form.defaultActivityLevel,
+      form.defaultCalories,
+      form.goal,
+      form.name,
+      form.sex,
+      form.startDate,
+      form.unitSystem,
+      heightCm,
+      weightKg
+    ]
   );
 
   const profilePreviewBmi = bmi(weightKg, heightCm);
@@ -157,6 +174,7 @@ export default function ProfileForm({
   );
   const isBelowMinimum = form.defaultCalories < minimumSafeCalories;
   const canAutoSubmit =
+    Boolean(form.name.trim()) &&
     Boolean(form.startDate) &&
     weightKg > 0 &&
     heightCm > 0 &&
@@ -174,6 +192,15 @@ export default function ProfileForm({
     onSubmit(normalizedProfile);
     lastSubmitted.current = serialized;
   }, [autoSubmit, canAutoSubmit, normalizedProfile, onSubmit]);
+
+  useEffect(() => {
+    const trimmed = form.name.trim();
+    if (trimmed) {
+      setLastProfileName(trimmed);
+    } else {
+      setLastProfileName(null);
+    }
+  }, [form.name]);
 
   function handleUnitChange(event: React.ChangeEvent<HTMLSelectElement>) {
     const unit = event.target.value as UnitSystem;
@@ -223,6 +250,16 @@ export default function ProfileForm({
 
   return (
     <form onSubmit={handleSubmit} className="profile-form">
+      <label>
+        Profile name
+        <input
+          type="text"
+          value={form.name}
+          onChange={(event) => updateField('name', event.target.value)}
+          required
+          placeholder="Enter a name to save your plan"
+        />
+      </label>
       {baselineIsCollapsed ? (
         <div className="baseline-editor-toggle">
           <button

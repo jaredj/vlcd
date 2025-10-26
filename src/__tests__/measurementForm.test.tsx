@@ -15,6 +15,7 @@ describe('MeasurementForm', () => {
   it('records, lists, and removes weight measurements', async () => {
     const todayIso = formatISO(new Date(), { representation: 'date' });
     const profile: Profile = {
+      name: 'Measurement Tester',
       unitSystem: 'imperial',
       startDate: '2025-01-01',
       startWeightKg: poundsToKilograms(260),
