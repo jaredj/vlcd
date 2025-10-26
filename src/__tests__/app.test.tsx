@@ -20,6 +20,7 @@ describe('App', () => {
   it('renders the dashboard when a stored profile is present', () => {
     const todayIso = formatISO(new Date(), { representation: 'date' });
     const profile: Profile = {
+      name: 'Stored Profile',
       unitSystem: 'imperial',
       startDate: '2025-01-01',
       startWeightKg: poundsToKilograms(260),

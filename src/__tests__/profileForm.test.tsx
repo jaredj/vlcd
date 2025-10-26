@@ -1,11 +1,12 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '../test-utils';
 import ProfileForm from '../components/ProfileForm';
 import type { Profile } from '../types';
 
 function createProfile(overrides: Partial<Profile> = {}): Profile {
   return {
+    name: 'Test Person',
     unitSystem: 'metric',
     startDate: '2025-01-01',
     startWeightKg: 90,
@@ -20,10 +21,15 @@ function createProfile(overrides: Partial<Profile> = {}): Profile {
 }
 
 describe('ProfileForm', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it('resets its state when a new profile is provided', async () => {
     const onSubmit = vi.fn();
     const { rerender } = render(<ProfileForm profile={createProfile()} onSubmit={onSubmit} submitLabel="Save" />);
 
+    expect(screen.getByLabelText<HTMLInputElement>(/profile name/i)).toHaveValue('Test Person');
     expect(screen.getByLabelText<HTMLSelectElement>(/units/i)).toHaveValue('metric');
     expect(screen.getByLabelText<HTMLInputElement>(/starting weight/i)).toHaveValue(90);
 
@@ -67,6 +73,7 @@ describe('ProfileForm', () => {
 
   it('auto submits normalized profiles and resubmits when fields change', async () => {
     const onSubmit = vi.fn();
+    window.localStorage.setItem('vlcd-last-profile-name', 'Auto Submitter');
     render(<ProfileForm profile={null} onSubmit={onSubmit} submitLabel="Save" autoSubmit />);
 
     await waitFor(() => {
@@ -74,6 +81,7 @@ describe('ProfileForm', () => {
     });
 
     const firstSubmission = onSubmit.mock.calls[0][0] as Profile;
+    expect(firstSubmission.name).toBe('Auto Submitter');
     expect(firstSubmission.unitSystem).toBe('imperial');
     expect(firstSubmission.startWeightKg).toBeCloseTo(120.2, 1);
     expect(firstSubmission.defaultCalories).toBe(800);
@@ -87,6 +95,7 @@ describe('ProfileForm', () => {
     });
 
     const secondSubmission = onSubmit.mock.calls[1][0] as Profile;
+    expect(secondSubmission.name).toBe('Auto Submitter');
     expect(secondSubmission.defaultCalories).toBe(900);
     expect(secondSubmission.startWeightKg).toBeCloseTo(firstSubmission.startWeightKg, 1);
   });
@@ -96,12 +105,17 @@ describe('ProfileForm', () => {
     const onAfterSubmit = vi.fn();
     render(<ProfileForm profile={null} onSubmit={onSubmit} submitLabel="Save" onAfterSubmit={onAfterSubmit} />);
 
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(/profile name/i), {
+      target: { value: 'Button Submitter' }
+    });
+
     fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onAfterSubmit).toHaveBeenCalledTimes(1);
 
     const submitted = onSubmit.mock.calls[0][0] as Profile;
+    expect(submitted.name).toBe('Button Submitter');
     expect(submitted.defaultCalories).toBe(800);
   });
 

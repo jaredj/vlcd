@@ -32,6 +32,7 @@ describe('usePersistentState', () => {
   it('hydrates state from localStorage when available', () => {
     const stored: Partial<AppState> = {
       profile: {
+        name: 'Stored Person',
         unitSystem: 'metric',
         startDate: '2025-01-01',
         startWeightKg: 95,

@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import type { JSX } from 'react';
 import type { AppState, DailyMeasurement, DayPlan, Profile } from '../types';
-import { usePersistentState } from './storage';
+import { clearStoredState, usePersistentState } from './storage';
 
 interface AppContextValue {
   state: AppState;
@@ -73,7 +73,11 @@ export function AppStateProvider({ children, initialState }: AppStateProviderPro
     }
 
     function reset() {
+      const profileName = state.profile?.name;
       setState({ profile: null, plans: {}, measurements: {} });
+      if (profileName) {
+        clearStoredState(profileName);
+      }
     }
 
     return {
