@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '../test-utils';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '../test-utils';
 import ProfileForm from '../components/ProfileForm';
 import type { Profile } from '../types';
 
@@ -103,5 +103,64 @@ describe('ProfileForm', () => {
 
     const submitted = onSubmit.mock.calls[0][0] as Profile;
     expect(submitted.defaultCalories).toBe(800);
+  });
+
+  it('supports collapsing baseline details when requested', () => {
+    const onBaselineCollapsedChange = vi.fn();
+    const { rerender } = render(
+      <ProfileForm
+        profile={null}
+        onSubmit={vi.fn()}
+        submitLabel="Save"
+        baselineCollapsed={false}
+        onBaselineCollapsedChange={onBaselineCollapsedChange}
+      />
+    );
+
+    const summary = screen.getByText(/units & body details/i);
+    const details = summary.closest('details');
+    if (!(details instanceof HTMLDetailsElement)) {
+      throw new Error('Expected a details element');
+    }
+    expect(details).toHaveAttribute('open');
+
+    act(() => {
+      details.open = false;
+      details.dispatchEvent(new Event('toggle'));
+    });
+    expect(onBaselineCollapsedChange).toHaveBeenCalledWith(true);
+
+    rerender(
+      <ProfileForm
+        profile={null}
+        onSubmit={vi.fn()}
+        submitLabel="Save"
+        baselineCollapsed
+        onBaselineCollapsedChange={onBaselineCollapsedChange}
+      />
+    );
+
+    expect(screen.getByText(/units & body details/i).closest('details')).not.toHaveAttribute('open');
+  });
+
+  it('allows dismissing the calorie warning and shows a tooltip thereafter', () => {
+    render(<ProfileForm profile={null} onSubmit={vi.fn()} submitLabel="Save" />);
+
+    const caloriesInput = screen.getByLabelText<HTMLInputElement>(/planned calories per day/i);
+    fireEvent.change(caloriesInput, { target: { value: '400' } });
+
+    const dismissButton = screen.getByRole('button', { name: /dismiss warning/i });
+    fireEvent.click(dismissButton);
+
+    expect(screen.queryByRole('button', { name: /dismiss warning/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('tooltip', { name: /medical supervision required/i })).toBeInTheDocument();
+    expect(window.localStorage.getItem('vlcd-calorie-warning-dismissed')).toBe('true');
+
+    cleanup();
+
+    render(<ProfileForm profile={null} onSubmit={vi.fn()} submitLabel="Save" />);
+    const followUpCalories = screen.getByLabelText<HTMLInputElement>(/planned calories per day/i);
+    fireEvent.change(followUpCalories, { target: { value: '400' } });
+    expect(screen.getByRole('tooltip', { name: /medical supervision required/i })).toBeInTheDocument();
   });
 });

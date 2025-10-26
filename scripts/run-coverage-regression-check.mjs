@@ -35,6 +35,11 @@ function ensureCoverageSummary(cwd) {
   const coverageDir = path.join(cwd, 'coverage');
   rmSync(coverageDir, { recursive: true, force: true });
 
+  const polyfillPath = path.join(cwd, 'scripts', 'test-polyfills.cjs');
+  const inheritedNodeOptions = process.env.NODE_OPTIONS ?? '';
+  const polyfillOption = `--require=${polyfillPath}`;
+  const nodeOptions = [inheritedNodeOptions, polyfillOption].filter(Boolean).join(' ').trim();
+
   run(
     'npx',
     [
@@ -45,7 +50,7 @@ function ensureCoverageSummary(cwd) {
       '--coverage.reporter=lcov',
       '--coverage.reporter=json-summary',
     ],
-    { cwd }
+    { cwd, env: { NODE_OPTIONS: nodeOptions } }
   );
 
   const summaryPath = path.join(coverageDir, 'coverage-summary.json');
