@@ -37,21 +37,27 @@ function ensureCoverageSummary(cwd) {
 
   const polyfillPath = path.join(cwd, 'scripts', 'test-polyfills.cjs');
   const inheritedNodeOptions = process.env.NODE_OPTIONS ?? '';
-  const polyfillOption = `--require=${polyfillPath}`;
+  const polyfillOption = existsSync(polyfillPath) ? `--require=${polyfillPath}` : '';
   const nodeOptions = [inheritedNodeOptions, polyfillOption].filter(Boolean).join(' ').trim();
 
-  run(
-    'npx',
-    [
-      'vitest',
-      'run',
-      '--coverage',
-      '--coverage.reporter=text',
-      '--coverage.reporter=lcov',
-      '--coverage.reporter=json-summary',
-    ],
-    { cwd, env: { NODE_OPTIONS: nodeOptions } }
-  );
+  const vitestArgs = [
+    'vitest',
+    'run',
+    '--coverage',
+    '--coverage.reporter=text',
+    '--coverage.reporter=lcov',
+    '--coverage.reporter=json-summary',
+  ];
+
+  const workspaceConfig = path.join(cwd, 'vitest.workspace.ts');
+  const viteConfigPath = path.join(cwd, 'vite.config.ts');
+  if (existsSync(workspaceConfig)) {
+    vitestArgs.push('--config', workspaceConfig);
+  } else if (existsSync(viteConfigPath)) {
+    vitestArgs.push('--config', viteConfigPath);
+  }
+
+  run('npx', vitestArgs, { cwd, env: { NODE_OPTIONS: nodeOptions } });
 
   const summaryPath = path.join(coverageDir, 'coverage-summary.json');
   if (!existsSync(summaryPath)) {
@@ -182,19 +188,26 @@ let baseSummary;
 let baseWorktree;
 
 if (!skipBase) {
+  const fallbackRef = process.env.COVERAGE_FALLBACK_REF || 'HEAD^';
   const effectiveBaseRef = ensureBaseRefAvailable(baseRef);
-  baseWorktree = mkdtempSync(path.join(tmpdir(), 'coverage-base-'));
-  try {
-    execSync(`git worktree add --force ${baseWorktree} ${effectiveBaseRef}`, { stdio: 'inherit' });
-    run('npm', ['ci'], { cwd: baseWorktree });
-    baseSummary = ensureCoverageSummary(baseWorktree);
-  } finally {
+  if (effectiveBaseRef === fallbackRef) {
+    console.warn(
+      `Coverage base ref ${baseRef} resolved to fallback ${fallbackRef}; skipping regression comparison.`
+    );
+  } else {
+    baseWorktree = mkdtempSync(path.join(tmpdir(), 'coverage-base-'));
     try {
-      execSync(`git worktree remove --force ${baseWorktree}`, { stdio: 'inherit' });
-    } catch (error) {
-      console.warn('Failed to remove git worktree cleanly:', error.message);
+      execSync(`git worktree add --force ${baseWorktree} ${effectiveBaseRef}`, { stdio: 'inherit' });
+      run('npm', ['ci'], { cwd: baseWorktree });
+      baseSummary = ensureCoverageSummary(baseWorktree);
+    } finally {
+      try {
+        execSync(`git worktree remove --force ${baseWorktree}`, { stdio: 'inherit' });
+      } catch (error) {
+        console.warn('Failed to remove git worktree cleanly:', error.message);
+      }
+      rmSync(baseWorktree, { recursive: true, force: true });
     }
-    rmSync(baseWorktree, { recursive: true, force: true });
   }
 } else {
   console.warn('COVERAGE_SKIP_BASE=1 set, skipping regression comparison.');

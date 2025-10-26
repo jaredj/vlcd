@@ -54,6 +54,23 @@ npm run test
 Vitest with React Testing Library covers the profile workflow, modelling engine, and daily plan overrides. Coverage reports are
 emitted in `lcov` format for CI.
 
+Targeted suites make it easier to iterate on focused areas:
+
+```bash
+npm run test:logic      # modelling and persistence utilities
+npm run test:state      # application state provider behaviour
+npm run test:chart      # projection chart rendering logic
+npm run test:bundle     # production build smoke test
+```
+
+Each suite can also emit coverage on its own:
+
+```bash
+npm run coverage:logic
+npm run coverage:state
+npm run coverage:chart
+```
+
 ### Production build
 
 ```bash
