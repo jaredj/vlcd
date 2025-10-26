@@ -125,9 +125,22 @@ describe('PlanAdjustments', () => {
   });
 
   it('scrolls the table to today when supported by the browser', async () => {
-    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
-    const scrollSpy = vi.fn();
-    (HTMLElement.prototype as unknown as { scrollIntoView: () => void }).scrollIntoView = scrollSpy;
+    const originalScrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      'scrollIntoView'
+    );
+
+    if (!originalScrollIntoViewDescriptor) {
+      Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+        value: () => undefined,
+        configurable: true,
+        writable: true
+      });
+    }
+
+    const scrollSpy = vi
+      .spyOn(HTMLElement.prototype, 'scrollIntoView')
+      .mockImplementation(() => undefined);
 
     const today = format(new Date(), 'yyyy-MM-dd');
     const projections: DailyProjection[] = [
@@ -154,9 +167,8 @@ describe('PlanAdjustments', () => {
         expect(scrollSpy).toHaveBeenCalled();
       });
     } finally {
-      if (originalScrollIntoView) {
-        HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
-      } else {
+      scrollSpy.mockRestore();
+      if (!originalScrollIntoViewDescriptor) {
         delete (HTMLElement.prototype as { scrollIntoView?: () => void }).scrollIntoView;
       }
     }
@@ -171,28 +183,28 @@ describe('PlanAdjustments', () => {
         startDate: '2025-10-17',
         startWeightKg: poundsToKilograms(265),
         heightCm: feetInchesToCentimeters(5, 10.5),
-      age: 44,
-      sex: 'male',
-      goal: 'alpinist-ready',
-      defaultCalories: 800,
-      defaultActivityLevel: 'minimal'
-    };
-    const initialState: AppState = { profile, plans: {}, measurements: {} };
-    const projection = generateProjections(initialState, 420);
+        age: 44,
+        sex: 'male',
+        goal: 'alpinist-ready',
+        defaultCalories: 800,
+        defaultActivityLevel: 'minimal'
+      };
+      const initialState: AppState = { profile, plans: {}, measurements: {} };
+      const projection = generateProjections(initialState, 420);
 
-    expect(projection.projections.length).toBeGreaterThan(40);
+      expect(projection.projections.length).toBeGreaterThan(40);
 
-    const finalDay = projection.projections[projection.projections.length - 1];
+      const finalDay = projection.projections[projection.projections.length - 1];
 
-    renderWithProviders(
-      <PlanAdjustments projections={projection.projections} unit={profile.unitSystem} />,
-      { initialState }
-    );
+      renderWithProviders(
+        <PlanAdjustments projections={projection.projections} unit={profile.unitSystem} />,
+        { initialState }
+      );
 
-    const rows = screen.getAllByRole('row');
-    expect(rows).toHaveLength(projection.projections.length + 1);
+      const rows = screen.getAllByRole('row');
+      expect(rows).toHaveLength(projection.projections.length + 1);
 
-    const lastDateLabel = format(parseISO(finalDay.date), 'MMM d');
+      const lastDateLabel = format(parseISO(finalDay.date), 'MMM d');
       expect(screen.getAllByText(lastDateLabel).length).toBeGreaterThan(0);
 
       const finalCaloriesInput = screen.getByLabelText(`Calories for ${finalDay.date}`);
