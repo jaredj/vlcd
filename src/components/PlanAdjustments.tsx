@@ -47,6 +47,7 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
   }, [minimumSafeCalories, upcoming, state.plans]);
 
   const todayRowRef = useRef<HTMLTableRowElement | null>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
   const hasScrolledToToday = useRef(false);
 
   useEffect(() => {
@@ -54,13 +55,41 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
       return;
     }
 
-    if (todayRowRef.current) {
-      const element = todayRowRef.current;
-      if (typeof element.scrollIntoView === 'function') {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      hasScrolledToToday.current = true;
+    const sectionElement = sectionRef.current;
+    if (!sectionElement) {
+      return;
     }
+
+    const scrollToToday = () => {
+      const element = todayRowRef.current;
+      if (!element || typeof element.scrollIntoView !== 'function') {
+        return;
+      }
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      hasScrolledToToday.current = true;
+    };
+
+    if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') {
+      scrollToToday();
+      return;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && !hasScrolledToToday.current) {
+          scrollToToday();
+        }
+      });
+    },
+    {
+      threshold: 0.1
+    });
+
+    observer.observe(sectionElement);
+
+    return () => {
+      observer.disconnect();
+    };
   }, [upcoming]);
 
   if (!upcoming.length) {
@@ -70,7 +99,7 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
   const today = new Date();
 
   return (
-    <section>
+    <section ref={sectionRef}>
       <h2>Daily plan adjustments</h2>
       <p>
         Fine-tune specific days by altering calories or anticipated activity. Adjustments automatically ripple into the rest of
