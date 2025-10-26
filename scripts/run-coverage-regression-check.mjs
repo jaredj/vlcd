@@ -9,11 +9,97 @@ import { execSync, spawnSync } from 'node:child_process';
 const metrics = ['lines', 'statements', 'branches', 'functions'];
 const epsilon = 1e-6;
 const repoRoot = process.cwd();
-const baseRef = process.env.COVERAGE_BASE_REF || 'origin/main';
-const skipBase = process.env.COVERAGE_SKIP_BASE === '1';
-const headSummaryEnv = process.env.COVERAGE_HEAD_SUMMARY;
+
+const {
+  vitestArgs,
+  skipBase,
+  baseRef,
+  fallbackRef,
+  headSummaryPath,
+  showHelp,
+} = parseArgs(process.argv.slice(2));
+
+if (showHelp) {
+  printHelp();
+  process.exit(0);
+}
+
 const reportPath = process.env.COVERAGE_REPORT_PATH;
 const stepSummaryPath = process.env.GITHUB_STEP_SUMMARY;
+
+const headSummaryEnv = headSummaryPath ?? process.env.COVERAGE_HEAD_SUMMARY;
+
+function parseArgs(args) {
+  let skipBase = process.env.COVERAGE_SKIP_BASE === '1';
+  let baseRef = process.env.COVERAGE_BASE_REF || 'origin/main';
+  let fallbackRef = process.env.COVERAGE_FALLBACK_REF || 'HEAD^';
+  let headSummaryPath;
+  let showHelp = false;
+  const vitestArgs = [];
+
+  const requireValue = (flag, index) => {
+    const value = args[index + 1];
+    if (!value || value.startsWith('-')) {
+      throw new Error(`${flag} requires a value`);
+    }
+    return value;
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    switch (arg) {
+      case '--head-only':
+      case '--skip-base':
+        skipBase = true;
+        break;
+      case '--base-ref': {
+        baseRef = requireValue(arg, index);
+        index += 1;
+        break;
+      }
+      case '--fallback-ref': {
+        fallbackRef = requireValue(arg, index);
+        index += 1;
+        break;
+      }
+      case '--head-summary': {
+        headSummaryPath = requireValue(arg, index);
+        index += 1;
+        break;
+      }
+      case '--help':
+      case '-h':
+        showHelp = true;
+        break;
+      case '--':
+        vitestArgs.push(...args.slice(index + 1));
+        index = args.length;
+        break;
+      default:
+        vitestArgs.push(arg);
+        break;
+    }
+  }
+
+  return { vitestArgs, skipBase, baseRef, fallbackRef, headSummaryPath, showHelp };
+}
+
+function printHelp() {
+  console.log(`Usage: npm test [-- <vitest-args>]
+
+Options:
+  --head-only, --skip-base   Skip generating coverage for the comparison base.
+  --base-ref <ref>           Override the git ref used for the base comparison.
+  --fallback-ref <ref>       Override the fallback ref used when base is unavailable.
+  --head-summary <path>      Provide a pre-generated head coverage summary.
+  -h, --help                 Show this help message.
+
+Any remaining arguments are forwarded to "vitest run". Examples:
+  npm test -- --head-only                 # Skip the base and run all tests with coverage.
+  npm test -- --head-only src/foo.test.ts # Run coverage for a specific test file.
+  npm test -- --run tests --reporter=dot  # Pass custom flags directly to Vitest.
+`);
+}
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -36,8 +122,9 @@ function ensureCoverageSummary(cwd) {
   rmSync(coverageDir, { recursive: true, force: true });
 
   const polyfillPath = path.join(cwd, 'scripts', 'test-polyfills.cjs');
+  const hasPolyfill = existsSync(polyfillPath);
   const inheritedNodeOptions = process.env.NODE_OPTIONS ?? '';
-  const polyfillOption = `--require=${polyfillPath}`;
+  const polyfillOption = hasPolyfill ? `--require=${polyfillPath}` : '';
   const nodeOptions = [inheritedNodeOptions, polyfillOption].filter(Boolean).join(' ').trim();
 
   run(
@@ -49,6 +136,7 @@ function ensureCoverageSummary(cwd) {
       '--coverage.reporter=text',
       '--coverage.reporter=lcov',
       '--coverage.reporter=json-summary',
+      ...vitestArgs,
     ],
     { cwd, env: { NODE_OPTIONS: nodeOptions } }
   );
@@ -75,7 +163,7 @@ function readCoverageSummary(summaryPath, rootDir) {
   return { total: raw.total, files };
 }
 
-function ensureBaseRefAvailable(ref) {
+function ensureBaseRefAvailable(ref, fallbackRef) {
   try {
     execSync(`git rev-parse --verify ${ref}`, { stdio: 'ignore' });
     return ref;
@@ -87,7 +175,6 @@ function ensureBaseRefAvailable(ref) {
       execSync(`git rev-parse --verify ${ref}`, { stdio: 'ignore' });
       return ref;
     } catch (fetchError) {
-      const fallbackRef = process.env.COVERAGE_FALLBACK_REF || 'HEAD^';
       try {
         execSync(`git rev-parse --verify ${fallbackRef}`, { stdio: 'ignore' });
         console.warn(
@@ -182,7 +269,7 @@ let baseSummary;
 let baseWorktree;
 
 if (!skipBase) {
-  const effectiveBaseRef = ensureBaseRefAvailable(baseRef);
+  const effectiveBaseRef = ensureBaseRefAvailable(baseRef, fallbackRef);
   baseWorktree = mkdtempSync(path.join(tmpdir(), 'coverage-base-'));
   try {
     execSync(`git worktree add --force ${baseWorktree} ${effectiveBaseRef}`, { stdio: 'inherit' });
