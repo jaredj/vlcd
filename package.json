@@ -6,7 +6,7 @@
   "description": "Very low-calorie diet planning and modeling application",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && npm run verify:dist",
     "verify:dist": "node scripts/verify-dist-base.mjs",
     "preview": "vite preview",
     "test": "node scripts/run-coverage-regression-check.mjs",

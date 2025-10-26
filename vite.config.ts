@@ -7,7 +7,7 @@ const maxThreads = Math.max(1, availableCpus * 4);
 
 export default defineConfig(({ command }) => ({
   plugins: [react()],
-  base: command === 'build' ? '/vlcd/' : '/',
+  base: command === 'build' ? './' : '/',
   test: {
     globals: true,
     environment: 'jsdom',

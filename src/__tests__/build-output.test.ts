@@ -24,8 +24,8 @@ describe('production bundle configuration', () => {
     indexHtml = readFileSync(resolveFromRoot('index.html'), 'utf8');
   });
 
-  it('configures the GitHub Pages base path', () => {
-    expect(config.base).toBe('/vlcd/');
+  it('configures a relative base path for static hosting', () => {
+    expect(config.base).toBe('./');
   });
 
   it('only references static assets that exist in the repository', () => {
