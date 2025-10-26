@@ -2,8 +2,11 @@ import { access, readFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { resolve } from 'node:path';
 
+const ROOT_INDEX = resolve('index.html');
 const DIST_INDEX = resolve('dist', 'index.html');
 const EXPECTED_BASE = './';
+const DEV_ENTRYPOINT = '/src/main.tsx';
+const INVALID_RELATIVE_ENTRYPOINT = './src/main.tsx';
 
 async function ensureDistIndexExists() {
   try {
@@ -15,6 +18,22 @@ async function ensureDistIndexExists() {
 }
 
 async function verifyBasePaths() {
+  const rootIndexContents = await readFile(ROOT_INDEX, 'utf8');
+
+  if (!rootIndexContents.includes(`src="${DEV_ENTRYPOINT}"`)) {
+    console.error('Deployment bundle verification failed:');
+    console.error(`  • Root index.html must reference the dev entrypoint as \`${DEV_ENTRYPOINT}\`.`);
+    console.error('\nEnsure that the Vite dev entrypoint uses an absolute path so Vite can intercept it.');
+    process.exit(1);
+  }
+
+  if (rootIndexContents.includes(`src="${INVALID_RELATIVE_ENTRYPOINT}"`)) {
+    console.error('Deployment bundle verification failed:');
+    console.error('  • Root index.html references the TypeScript entrypoint via a relative path.');
+    console.error('\nEnsure that the Vite dev entrypoint uses an absolute path so Vite can intercept it.');
+    process.exit(1);
+  }
+
   await ensureDistIndexExists();
   const contents = await readFile(DIST_INDEX, 'utf8');
 
