@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '../test-utils';
+import { cleanup, fireEvent, render, screen, waitFor } from '../test-utils';
 import ProfileForm from '../components/ProfileForm';
 import type { Profile } from '../types';
 
@@ -117,17 +117,9 @@ describe('ProfileForm', () => {
       />
     );
 
-    const summary = screen.getByText(/units & body details/i);
-    const details = summary.closest('details');
-    if (!(details instanceof HTMLDetailsElement)) {
-      throw new Error('Expected a details element');
-    }
-    expect(details).toHaveAttribute('open');
+    expect(screen.getByLabelText(/diet start date/i)).toBeInTheDocument();
 
-    act(() => {
-      details.open = false;
-      details.dispatchEvent(new Event('toggle'));
-    });
+    fireEvent.click(screen.getByRole('button', { name: /hide starting setup/i }));
     expect(onBaselineCollapsedChange).toHaveBeenCalledWith(true);
 
     rerender(
@@ -140,7 +132,10 @@ describe('ProfileForm', () => {
       />
     );
 
-    expect(screen.getByText(/units & body details/i).closest('details')).not.toHaveAttribute('open');
+    expect(screen.queryByLabelText(/diet start date/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /edit starting setup/i }));
+    expect(onBaselineCollapsedChange).toHaveBeenLastCalledWith(false);
   });
 
   it('allows dismissing the calorie warning and shows a tooltip thereafter', () => {

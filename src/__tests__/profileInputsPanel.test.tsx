@@ -1,5 +1,5 @@
 import React from 'react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, screen, waitFor } from '../test-utils';
 import { renderWithProviders } from '../test-utils';
 import ProfileInputsPanel from '../components/ProfileInputsPanel';
@@ -76,22 +76,25 @@ describe('ProfileInputsPanel', () => {
   it('toggles the baseline details collapse state and remembers the preference', async () => {
     renderWithProviders(<ProfileInputsPanel />);
 
-    const summary = screen.getByText(/units & body details/i);
-    const details = summary.closest('details');
-    expect(details).toHaveAttribute('open');
+    expect(screen.getByLabelText(/diet start date/i)).toBeInTheDocument();
 
-    fireEvent.click(summary);
+    fireEvent.click(screen.getByRole('button', { name: /hide starting setup/i }));
 
     await waitFor(() => {
       expect(window.localStorage.getItem('vlcd-baseline-collapsed')).toBe('true');
     });
-    expect(summary.closest('details')).not.toHaveAttribute('open');
+    expect(screen.queryByLabelText(/diet start date/i)).not.toBeInTheDocument();
 
     cleanup();
 
     renderWithProviders(<ProfileInputsPanel />);
-    const newSummary = screen.getByText(/units & body details/i);
-    expect(newSummary.closest('details')).not.toHaveAttribute('open');
+    expect(screen.queryByLabelText(/diet start date/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /edit starting setup/i }));
+    await waitFor(() => {
+      expect(window.localStorage.getItem('vlcd-baseline-collapsed')).toBe('false');
+    });
+    expect(screen.getByLabelText(/diet start date/i)).toBeInTheDocument();
   });
 
   it('marks the baseline details as seen after the first render', () => {
@@ -105,15 +108,17 @@ describe('ProfileInputsPanel', () => {
     window.localStorage.setItem('vlcd-baseline-collapsed', 'false');
 
     renderWithProviders(<ProfileInputsPanel />);
-    const summary = screen.getByText(/units & body details/i);
-    expect(summary.closest('details')).toHaveAttribute('open');
+    expect(screen.getByLabelText(/diet start date/i)).toBeInTheDocument();
 
     cleanup();
 
     window.localStorage.setItem('vlcd-baseline-seen', 'true');
     window.localStorage.setItem('vlcd-baseline-collapsed', 'true');
     renderWithProviders(<ProfileInputsPanel />);
-    expect(screen.getByText(/units & body details/i).closest('details')).not.toHaveAttribute('open');
+    expect(screen.queryByLabelText(/diet start date/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /edit starting setup/i }));
+    expect(screen.getByLabelText(/diet start date/i)).toBeInTheDocument();
   });
 
   it('collapses the baseline block when previously viewed but no preference was stored', () => {
@@ -121,6 +126,59 @@ describe('ProfileInputsPanel', () => {
 
     renderWithProviders(<ProfileInputsPanel />);
 
-    expect(screen.getByText(/units & body details/i).closest('details')).not.toHaveAttribute('open');
+    expect(screen.queryByLabelText(/diet start date/i)).not.toBeInTheDocument();
+  });
+
+  it('resets the stored plan when the reset action is used', async () => {
+    const initialState = {
+      profile: {
+        unitSystem: 'metric',
+        startDate: '2025-01-01',
+        startWeightKg: 90,
+        heightCm: 180,
+        age: 35,
+        sex: 'female',
+        goal: 'feel-great',
+        defaultCalories: 1600,
+        defaultActivityLevel: 'moderate'
+      },
+      plans: { '2025-01-01': { date: '2025-01-01', calories: 900, activityLevel: 'light' } },
+      measurements: { '2025-01-02': { date: '2025-01-02', weightKg: 90, fasted: false } }
+    } as const;
+
+    const setItemSpy = vi.spyOn(window.localStorage.__proto__, 'setItem');
+
+    renderWithProviders(<ProfileInputsPanel />, { initialState });
+
+    fireEvent.click(screen.getByRole('button', { name: /reset everything/i }));
+
+    await waitFor(() => {
+      expect(setItemSpy).toHaveBeenCalledWith(
+        'vlcd-app-state-v1',
+        JSON.stringify({ profile: null, plans: {}, measurements: {} })
+      );
+    });
+
+    setItemSpy.mockRestore();
+  });
+
+  it('respects externally controlled collapse state changes', () => {
+    const onBaselineCollapsedChange = vi.fn();
+    const { rerender } = renderWithProviders(
+      <ProfileInputsPanel baselineCollapsed onBaselineCollapsedChange={onBaselineCollapsedChange} />
+    );
+
+    expect(screen.queryByLabelText(/diet start date/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /edit starting setup/i }));
+    expect(onBaselineCollapsedChange).toHaveBeenCalledWith(false);
+
+    rerender(
+      <ProfileInputsPanel baselineCollapsed={false} onBaselineCollapsedChange={onBaselineCollapsedChange} />
+    );
+    expect(screen.getByLabelText(/diet start date/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /hide starting setup/i }));
+    expect(onBaselineCollapsedChange).toHaveBeenLastCalledWith(true);
   });
 });
