@@ -1,5 +1,3 @@
-import '@testing-library/jest-dom/vitest';
-
 const arrayBufferDescriptor = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'resizable');
 if (!arrayBufferDescriptor) {
   Object.defineProperty(ArrayBuffer.prototype, 'resizable', {
