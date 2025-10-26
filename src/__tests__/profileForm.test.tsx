@@ -6,6 +6,7 @@ import type { Profile } from '../types';
 
 function createProfile(overrides: Partial<Profile> = {}): Profile {
   return {
+    name: 'Test',
     unitSystem: 'metric',
     startDate: '2025-01-01',
     startWeightKg: 90,
@@ -69,11 +70,16 @@ describe('ProfileForm', () => {
     const onSubmit = vi.fn();
     render(<ProfileForm profile={null} onSubmit={onSubmit} submitLabel="Save" autoSubmit />);
 
+    const nameInput = screen.getByLabelText<HTMLInputElement>(/profile name/i);
+    fireEvent.change(nameInput, { target: { value: 'Auto' } });
+    fireEvent.blur(nameInput);
+
     await waitFor(() => {
       expect(onSubmit).toHaveBeenCalledTimes(1);
     });
 
     const firstSubmission = onSubmit.mock.calls[0][0] as Profile;
+    expect(firstSubmission.name).toBe('Auto');
     expect(firstSubmission.unitSystem).toBe('imperial');
     expect(firstSubmission.startWeightKg).toBeCloseTo(120.2, 1);
     expect(firstSubmission.defaultCalories).toBe(800);
@@ -96,12 +102,16 @@ describe('ProfileForm', () => {
     const onAfterSubmit = vi.fn();
     render(<ProfileForm profile={null} onSubmit={onSubmit} submitLabel="Save" onAfterSubmit={onAfterSubmit} />);
 
+    const nameInput = screen.getByLabelText<HTMLInputElement>(/profile name/i);
+    fireEvent.change(nameInput, { target: { value: 'Manual' } });
+
     fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onAfterSubmit).toHaveBeenCalledTimes(1);
 
     const submitted = onSubmit.mock.calls[0][0] as Profile;
+    expect(submitted.name).toBe('Manual');
     expect(submitted.defaultCalories).toBe(800);
   });
 

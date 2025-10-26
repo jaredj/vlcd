@@ -1,4 +1,39 @@
 import '@testing-library/jest-dom/vitest';
+import { beforeEach, vi } from 'vitest';
+
+const mockGetDoc = vi.fn();
+const mockSetDoc = vi.fn();
+
+vi.mock('firebase/app', () => {
+  const initializeApp = vi.fn(() => ({ app: 'mock-app' }));
+  const getApps = vi.fn(() => []);
+  return {
+    initializeApp,
+    getApps
+  };
+});
+
+vi.mock('firebase/firestore', () => ({
+  getFirestore: vi.fn(() => ({ firestore: 'mock' })),
+  doc: vi.fn((...parts: string[]) => ({ path: parts.join('/') })),
+  getDoc: mockGetDoc,
+  setDoc: mockSetDoc
+}));
+
+declare global {
+  var __FIREBASE_MOCKS__: {
+    getDoc: typeof mockGetDoc;
+    setDoc: typeof mockSetDoc;
+  };
+}
+
+// Expose the mocks globally for tests that need to reset behavior.
+globalThis.__FIREBASE_MOCKS__ = { getDoc: mockGetDoc, setDoc: mockSetDoc };
+
+beforeEach(() => {
+  mockGetDoc.mockReset();
+  mockSetDoc.mockReset();
+});
 
 const arrayBufferDescriptor = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'resizable');
 if (!arrayBufferDescriptor) {

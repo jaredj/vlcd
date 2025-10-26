@@ -10,7 +10,7 @@ import * as modeling from '../lib/modeling';
 describe('Dashboard', () => {
   beforeEach(() => {
     window.localStorage.clear();
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it('renders the baseline panel when no profile exists', () => {
@@ -24,6 +24,7 @@ describe('Dashboard', () => {
   it('shows current plan insights when a profile is configured', () => {
     const todayIso = formatISO(new Date(), { representation: 'date' });
     const profile: Profile = {
+      name: 'Test',
       unitSystem: 'metric',
       startDate: todayIso,
       startWeightKg: 120,
@@ -54,6 +55,7 @@ describe('Dashboard', () => {
     window.localStorage.setItem('vlcd-baseline-collapsed', 'true');
     const todayIso = formatISO(new Date(), { representation: 'date' });
     const profile: Profile = {
+      name: 'Test',
       unitSystem: 'imperial',
       startDate: todayIso,
       startWeightKg: poundsToKilograms(260),
@@ -77,6 +79,7 @@ describe('Dashboard', () => {
 
   it('handles missing projection entries gracefully', () => {
     const profile: Profile = {
+      name: 'Test',
       unitSystem: 'imperial',
       startDate: '2025-01-01',
       startWeightKg: poundsToKilograms(260),

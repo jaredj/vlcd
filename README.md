@@ -1,7 +1,8 @@
 # Very-Low-Calorie Diet Progress Lab
 
 A single-page application for planning and tracking a very-low-calorie diet (VLCD), including metabolic modelling that forecasts
-both fasted and refed scale weights. Profiles are stored locally so the experience resumes where you left off.
+both fasted and refed scale weights. Profiles now sync to Firestore using a user-provided name, with the most recent name cached
+locally so the experience resumes where you left off.
 
 ## Key capabilities
 

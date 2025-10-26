@@ -2,16 +2,18 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import type { JSX } from 'react';
 import type { AppState, DailyMeasurement, DayPlan, Profile } from '../types';
-import { usePersistentState } from './storage';
+import { INITIAL_STATE, usePersistentState } from './storage';
 
 interface AppContextValue {
   state: AppState;
+  profileName: string | null;
   setProfile: (profile: Profile) => void;
   updatePlan: (dateIso: string, updates: Partial<DayPlan>) => void;
   removePlan: (dateIso: string) => void;
   recordMeasurement: (measurement: DailyMeasurement) => void;
   removeMeasurement: (dateIso: string) => void;
   reset: () => void;
+  loadProfileByName: (name: string) => Promise<AppState | null>;
 }
 
 const AppStateContext = createContext<AppContextValue | undefined>(undefined);
@@ -22,7 +24,7 @@ interface AppStateProviderProps {
 }
 
 export function AppStateProvider({ children, initialState }: AppStateProviderProps): JSX.Element {
-  const [state, setState] = usePersistentState(initialState);
+  const { state, setState, loadStateByName, profileName } = usePersistentState(initialState);
 
   const value = useMemo<AppContextValue>(() => {
     function setProfile(profile: Profile) {
@@ -73,19 +75,25 @@ export function AppStateProvider({ children, initialState }: AppStateProviderPro
     }
 
     function reset() {
-      setState({ profile: null, plans: {}, measurements: {} });
+      setState(INITIAL_STATE);
+    }
+
+    function loadProfileByName(name: string) {
+      return loadStateByName(name);
     }
 
     return {
       state,
+      profileName,
       setProfile,
       updatePlan,
       removePlan,
       recordMeasurement,
       removeMeasurement,
-      reset
+      reset,
+      loadProfileByName
     };
-  }, [setState, state]);
+  }, [loadStateByName, profileName, setState, state]);
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }

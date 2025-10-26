@@ -14,7 +14,7 @@ export default function ProfileInputsPanel({
   baselineCollapsed: baselineCollapsedProp,
   onBaselineCollapsedChange
 }: ProfileInputsPanelProps = {}): JSX.Element {
-  const { state, setProfile, reset } = useAppState();
+  const { state, setProfile, reset, loadProfileByName, profileName } = useAppState();
   const [internalCollapsed, setInternalCollapsed] = useBaselineEditorState();
   const baselineCollapsed = baselineCollapsedProp ?? internalCollapsed;
 
@@ -33,15 +33,28 @@ export default function ProfileInputsPanel({
     [onBaselineCollapsedChange, setInternalCollapsed]
   );
 
+  const handleProfileNameBlur = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed || trimmed === (profileName ?? '').trim()) {
+        return;
+      }
+      void loadProfileByName(trimmed);
+    },
+    [loadProfileByName, profileName]
+  );
+
   return (
     <section>
       <ProfileForm
         profile={state.profile}
+        profileName={profileName ?? undefined}
         onSubmit={setProfile}
         submitLabel="Save profile"
         autoSubmit
         baselineCollapsed={baselineCollapsed}
         onBaselineCollapsedChange={handleBaselineCollapsedChange}
+        onProfileNameBlur={handleProfileNameBlur}
       />
       <div style={{ marginTop: '0.75rem' }}>
         <button type="button" style={{ background: '#ef4444' }} onClick={() => reset()}>
