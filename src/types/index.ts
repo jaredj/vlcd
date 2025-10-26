@@ -11,6 +11,7 @@ export type FitnessGoal =
   | 'competitive-athlete';
 
 export interface Profile {
+  name: string;
   unitSystem: UnitSystem;
   startDate: string; // ISO date
   startWeightKg: number;

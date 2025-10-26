@@ -65,6 +65,7 @@ describe('ProfileSummary', () => {
       currentRefedKg: 87
     };
     const profile: Profile = {
+      name: 'Profile Summary Default',
       unitSystem: 'metric',
       startDate: '2025-01-01',
       startWeightKg: 96,
@@ -114,6 +115,7 @@ describe('ProfileSummary', () => {
       currentRefedKg: null
     };
     const profile: Profile = {
+      name: 'Profile Summary Pending Target',
       unitSystem: 'imperial',
       startDate: todayIso,
       startWeightKg: 93,
@@ -144,6 +146,7 @@ describe('ProfileSummary', () => {
       currentRefedKg: null
     };
     const profile: Profile = {
+      name: 'Low Activity Profile',
       unitSystem: 'metric',
       startDate: startInFuture,
       startWeightKg: 92,
@@ -175,6 +178,7 @@ describe('ProfileSummary', () => {
       currentRefedKg: 80
     };
     const profile: Profile = {
+      name: 'Aggressive Timeline Profile',
       unitSystem: 'imperial',
       startDate,
       startWeightKg: 86,
@@ -231,6 +235,7 @@ describe('ProfileSummary', () => {
       currentRefedKg: null
     };
     const profile: Profile = {
+      name: 'Recent Measurement Profile',
       unitSystem: 'imperial',
       startDate: todayIso,
       startWeightKg: 93,
@@ -271,6 +276,7 @@ describe('ProfileSummary', () => {
       currentRefedKg: 80
     };
     const profile: Profile = {
+      name: 'Moderate Activity Profile',
       unitSystem: 'imperial',
       startDate: startInPast,
       startWeightKg: 87,
@@ -301,6 +307,7 @@ describe('ProfileSummary', () => {
       currentRefedKg: 80
     };
     const profile: Profile = {
+      name: 'Maintenance Profile',
       unitSystem: 'imperial',
       startDate: startInPast,
       startWeightKg: 86,
@@ -334,6 +341,7 @@ describe('ProfileSummary', () => {
       currentRefedKg: 85
     };
     const profile: Profile = {
+      name: 'Delayed Target Profile',
       unitSystem: 'metric',
       startDate: formatISO(addDays(new Date(), -30), { representation: 'date' }),
       startWeightKg: 92,
@@ -366,6 +374,7 @@ describe('ProfileSummary', () => {
       currentRefedKg: 85
     };
     const profile: Profile = {
+      name: 'Completed Target Profile',
       unitSystem: 'imperial',
       startDate,
       startWeightKg: 92,
