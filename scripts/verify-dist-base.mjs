@@ -4,6 +4,8 @@ import { resolve } from 'node:path';
 
 const DIST_INDEX = resolve('dist', 'index.html');
 const EXPECTED_BASE = './';
+const MODULE_SCRIPT_PATTERN = /<script\s+[^>]*type="module"[^>]*src="([^"]+)"/g;
+const TYPESCRIPT_REFERENCE_PATTERN = /(src|href)="[^"]+\.(?:ts|tsx)(?:\?[^"']*)?"/i;
 
 async function ensureDistIndexExists() {
   try {
@@ -20,6 +22,12 @@ async function verifyBasePaths() {
 
   const missing = [];
 
+  const moduleScripts = [...contents.matchAll(MODULE_SCRIPT_PATTERN)].map(([, src]) => src);
+
+  if (moduleScripts.length === 0) {
+    missing.push('No module scripts were found in the build output.');
+  }
+
   if (!contents.includes(`src="${EXPECTED_BASE}assets/`)) {
     missing.push('JavaScript bundle is not referenced with the expected base path.');
   }
@@ -31,8 +39,19 @@ async function verifyBasePaths() {
     missing.push('Static assets are not referenced with the expected base path.');
   }
 
-  if (contents.includes('src="./src/main.tsx"')) {
-    missing.push('TypeScript entrypoint is referenced directly instead of the compiled bundle.');
+  if (TYPESCRIPT_REFERENCE_PATTERN.test(contents)) {
+    missing.push('TypeScript sources are referenced directly instead of the compiled bundles.');
+  }
+
+  for (const scriptSrc of moduleScripts) {
+    if (!scriptSrc.endsWith('.js')) {
+      missing.push(`Module script ${scriptSrc} does not reference a JavaScript file.`);
+    }
+  }
+
+  const invalidBundleReference = moduleScripts.find((src) => src.includes('src/main.ts'));
+  if (invalidBundleReference) {
+    missing.push(`Module script ${invalidBundleReference} references the source entrypoint instead of the compiled bundle.`);
   }
 
   if (missing.length > 0) {
