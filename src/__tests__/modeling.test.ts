@@ -16,7 +16,7 @@ describe('generateProjections', () => {
     defaultActivityLevel: 'minimal'
   };
 
-  it('returns a target weight and timeline for the alpinist goal', () => {
+  it.concurrent('returns a target weight and timeline for the alpinist goal', () => {
     const state: AppState = { profile, plans: {}, measurements: {} };
     const result = generateProjections(state, 200);
     expect(result.targetWeightKg).toBeLessThan(profile.startWeightKg);
@@ -25,7 +25,7 @@ describe('generateProjections', () => {
     expect(Math.abs(result.projections[0].refedScaleKg - profile.startWeightKg)).toBeLessThan(1);
   });
 
-  it('respects recorded measurements and flags them in the timeline', () => {
+  it.concurrent('respects recorded measurements and flags them in the timeline', () => {
     const state: AppState = {
       profile,
       plans: {},
@@ -40,7 +40,7 @@ describe('generateProjections', () => {
     expect(measuredDay?.refedScaleKg).toBeCloseTo(poundsToKilograms(240), 2);
   });
 
-  it('shows reduced deficit for high calorie plan overrides', () => {
+  it.concurrent('shows reduced deficit for high calorie plan overrides', () => {
     const state: AppState = {
       profile,
       plans: {
@@ -58,7 +58,7 @@ describe('generateProjections', () => {
     expect(dayTwo?.deficit).toBeLessThan(0);
   });
 
-  it('propagates calorie edits forward until a new adjustment is encountered', () => {
+  it.concurrent('propagates calorie edits forward until a new adjustment is encountered', () => {
     const state: AppState = {
       profile,
       plans: {
@@ -79,7 +79,7 @@ describe('generateProjections', () => {
     expect(daySeven?.calories).toBe(870);
   });
 
-  it('transitions to maintenance calories once the target weight is achieved', () => {
+  it.concurrent('transitions to maintenance calories once the target weight is achieved', () => {
     const state: AppState = {
       profile,
       plans: {
@@ -106,7 +106,7 @@ describe('generateProjections', () => {
     });
   });
 
-  it('captures rapid early losses when calories are extremely low', () => {
+  it.concurrent('captures rapid early losses when calories are extremely low', () => {
     const aggressiveProfile: Profile = {
       ...profile,
       defaultCalories: 300,

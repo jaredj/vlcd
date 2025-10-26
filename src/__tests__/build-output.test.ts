@@ -9,6 +9,7 @@ import { build } from 'vite';
 describe('production bundle', () => {
   const basePath = '/vlcd/';
   let outDir: string;
+  let distHtml = '';
 
   beforeAll(async () => {
     outDir = mkdtempSync(join(tmpdir(), 'vlcd-build-test-'));
@@ -20,6 +21,7 @@ describe('production bundle', () => {
       },
       logLevel: 'silent',
     });
+    distHtml = readDistIndex();
   }, 60000);
 
   afterAll(() => {
@@ -32,14 +34,12 @@ describe('production bundle', () => {
     return readFileSync(join(outDir, 'index.html'), 'utf8');
   }
 
-  it('references JavaScript bundles using the GitHub Pages base path', () => {
-    const html = readDistIndex();
-    expect(html).toContain(`src="${basePath}assets/`);
+  it.concurrent('references JavaScript bundles using the GitHub Pages base path', () => {
+    expect(distHtml).toContain(`src="${basePath}assets/`);
   });
 
-  it('only references static assets that exist in the bundle', () => {
-    const html = readDistIndex();
-    const assetMatches = [...html.matchAll(/(?:src|href)="([^"]+)"/g)];
+  it.concurrent('only references static assets that exist in the bundle', () => {
+    const assetMatches = [...distHtml.matchAll(/(?:src|href)="([^"]+)"/g)];
     const assetPaths = assetMatches
       .map((match) => match[1])
       .filter((value) => value.startsWith(basePath) || value.startsWith('./'));
