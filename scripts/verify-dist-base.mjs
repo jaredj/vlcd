@@ -3,7 +3,7 @@ import { constants } from 'node:fs';
 import { resolve } from 'node:path';
 
 const DIST_INDEX = resolve('dist', 'index.html');
-const EXPECTED_BASE = '/vlcd/';
+const EXPECTED_BASE = './';
 
 async function ensureDistIndexExists() {
   try {
@@ -24,8 +24,15 @@ async function verifyBasePaths() {
     missing.push('JavaScript bundle is not referenced with the expected base path.');
   }
 
-  if (!contents.includes(`href="${EXPECTED_BASE}assets/`) && !contents.includes(`href="${EXPECTED_BASE}vite.svg"`)) {
+  if (
+    !contents.includes(`href="${EXPECTED_BASE}assets/`) &&
+    !contents.includes(`href="${EXPECTED_BASE}vite.svg"`)
+  ) {
     missing.push('Static assets are not referenced with the expected base path.');
+  }
+
+  if (contents.includes('src="./src/main.tsx"')) {
+    missing.push('TypeScript entrypoint is referenced directly instead of the compiled bundle.');
   }
 
   if (missing.length > 0) {
@@ -33,7 +40,7 @@ async function verifyBasePaths() {
     for (const message of missing) {
       console.error(`  • ${message}`);
     }
-    console.error('\nEnsure that the Vite base path matches the GitHub Pages deployment path.');
+    console.error('\nEnsure that the Vite build output references the compiled assets.');
     process.exit(1);
   }
 
