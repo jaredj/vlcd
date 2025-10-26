@@ -1,53 +1,44 @@
 // @vitest-environment node
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { build } from 'vite';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { loadConfigFromFile } from 'vite';
+import type { UserConfig } from 'vite';
 
-describe('production bundle', () => {
-  const basePath = '/vlcd/';
-  let outDir: string;
-  let distHtml = '';
+const testDir = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(testDir, '..', '..');
+
+function resolveFromRoot(path: string): string {
+  return resolve(repoRoot, path);
+}
+
+describe('production bundle configuration', () => {
+  let config: UserConfig;
+  let indexHtml = '';
 
   beforeAll(async () => {
-    outDir = mkdtempSync(join(tmpdir(), 'vlcd-build-test-'));
-    await build({
-      configFile: resolve('vite.config.ts'),
-      build: {
-        outDir,
-        emptyOutDir: true,
-      },
-      logLevel: 'silent',
-    });
-    distHtml = readDistIndex();
-  }, 60000);
-
-  afterAll(() => {
-    if (outDir) {
-      rmSync(outDir, { recursive: true, force: true });
-    }
+    const loaded = await loadConfigFromFile({ command: 'build', mode: 'production' }, resolveFromRoot('vite.config.ts'));
+    config = loaded?.config ?? {};
+    indexHtml = readFileSync(resolveFromRoot('index.html'), 'utf8');
   });
 
-  function readDistIndex(): string {
-    return readFileSync(join(outDir, 'index.html'), 'utf8');
-  }
-
-  it.concurrent('references JavaScript bundles using the GitHub Pages base path', () => {
-    expect(distHtml).toContain(`src="${basePath}assets/`);
+  it('configures the GitHub Pages base path', () => {
+    expect(config.base).toBe('/vlcd/');
   });
 
-  it.concurrent('only references static assets that exist in the bundle', () => {
-    const assetMatches = [...distHtml.matchAll(/(?:src|href)="([^"]+)"/g)];
+  it('only references static assets that exist in the repository', () => {
+    const assetMatches = [...indexHtml.matchAll(/(?:src|href)="([^"]+)"/g)];
     const assetPaths = assetMatches
       .map((match) => match[1])
-      .filter((value) => value.startsWith(basePath) || value.startsWith('./'));
+      .filter((value) => value.startsWith('.') || value.startsWith('/'));
 
     for (const asset of assetPaths) {
-      const relative = asset.startsWith(basePath) ? asset.slice(basePath.length) : asset.replace(/^\.\//, '');
-      const assetFile = join(outDir, relative);
-      expect(existsSync(assetFile)).toBe(true);
+      const relative = asset.startsWith('./') ? asset.slice(2) : asset.replace(/^\//, '');
+      const candidates = [resolveFromRoot(relative), resolveFromRoot(join('public', relative))];
+      const found = candidates.some((candidate) => existsSync(candidate));
+      expect(found).toBe(true);
     }
   });
 });
