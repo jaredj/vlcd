@@ -7,6 +7,7 @@ import type { AppState, Profile } from '../types';
 import { poundsToKilograms } from '../utils/conversions';
 
 const SAMPLE_PROFILE: Profile = {
+  name: 'Stateful Profile',
   unitSystem: 'imperial',
   startDate: '2025-01-01',
   startWeightKg: poundsToKilograms(255),

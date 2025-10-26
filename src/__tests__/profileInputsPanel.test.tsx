@@ -41,6 +41,7 @@ describe('ProfileInputsPanel', () => {
   });
 
   it('persists the profile automatically once rendered', async () => {
+    window.localStorage.setItem('vlcd-last-profile-name', 'PanelTester');
     renderWithProviders(<ProfileInputsPanel />);
 
     await waitFor(() => {
@@ -48,9 +49,10 @@ describe('ProfileInputsPanel', () => {
     });
 
     const stored = JSON.parse(window.localStorage.getItem('vlcd-app-state-v1') ?? '{}') as {
-      profile?: { goal?: string; defaultCalories?: number };
+      profile?: { name?: string; goal?: string; defaultCalories?: number };
     };
     expect(stored.profile).toMatchObject({
+      name: 'PanelTester',
       goal: 'alpinist-ready',
       defaultCalories: 800
     });
@@ -132,6 +134,7 @@ describe('ProfileInputsPanel', () => {
   it('resets the stored plan when the reset action is used', async () => {
     const initialState = {
       profile: {
+        name: 'Existing Plan',
         unitSystem: 'metric',
         startDate: '2025-01-01',
         startWeightKg: 90,

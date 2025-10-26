@@ -1,11 +1,12 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '../test-utils';
 import ProfileForm from '../components/ProfileForm';
 import type { Profile } from '../types';
 
 function createProfile(overrides: Partial<Profile> = {}): Profile {
   return {
+    name: 'Test Profile',
     unitSystem: 'metric',
     startDate: '2025-01-01',
     startWeightKg: 90,
@@ -19,6 +20,10 @@ function createProfile(overrides: Partial<Profile> = {}): Profile {
   };
 }
 
+beforeEach(() => {
+  window.localStorage.clear();
+});
+
 describe('ProfileForm', () => {
   it('resets its state when a new profile is provided', async () => {
     const onSubmit = vi.fn();
@@ -26,8 +31,10 @@ describe('ProfileForm', () => {
 
     expect(screen.getByLabelText<HTMLSelectElement>(/units/i)).toHaveValue('metric');
     expect(screen.getByLabelText<HTMLInputElement>(/starting weight/i)).toHaveValue(90);
+    expect(screen.getByLabelText<HTMLInputElement>(/profile name/i)).toHaveValue('Test Profile');
 
     const updatedProfile = createProfile({
+      name: 'Updated Profile',
       unitSystem: 'imperial',
       startDate: '2025-05-01',
       startWeightKg: 110,
@@ -45,6 +52,7 @@ describe('ProfileForm', () => {
     expect(Number(weightInput.value)).toBeCloseTo(242.5, 1);
     expect(screen.getByLabelText<HTMLInputElement>(/diet start date/i)).toHaveValue('2025-05-01');
     expect(screen.getByLabelText<HTMLInputElement>(/planned calories per day/i)).toHaveValue(1500);
+    expect(screen.getByLabelText<HTMLInputElement>(/profile name/i)).toHaveValue('Updated Profile');
   });
 
   it('converts between metric and imperial units when toggled', () => {
@@ -67,6 +75,7 @@ describe('ProfileForm', () => {
 
   it('auto submits normalized profiles and resubmits when fields change', async () => {
     const onSubmit = vi.fn();
+    window.localStorage.setItem('vlcd-last-profile-name', 'AutoTester');
     render(<ProfileForm profile={null} onSubmit={onSubmit} submitLabel="Save" autoSubmit />);
 
     await waitFor(() => {
@@ -74,6 +83,7 @@ describe('ProfileForm', () => {
     });
 
     const firstSubmission = onSubmit.mock.calls[0][0] as Profile;
+    expect(firstSubmission.name).toBe('AutoTester');
     expect(firstSubmission.unitSystem).toBe('imperial');
     expect(firstSubmission.startWeightKg).toBeCloseTo(120.2, 1);
     expect(firstSubmission.defaultCalories).toBe(800);
@@ -96,12 +106,16 @@ describe('ProfileForm', () => {
     const onAfterSubmit = vi.fn();
     render(<ProfileForm profile={null} onSubmit={onSubmit} submitLabel="Save" onAfterSubmit={onAfterSubmit} />);
 
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(/profile name/i), {
+      target: { value: 'Manual Submitter' }
+    });
     fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onAfterSubmit).toHaveBeenCalledTimes(1);
 
     const submitted = onSubmit.mock.calls[0][0] as Profile;
+    expect(submitted.name).toBe('Manual Submitter');
     expect(submitted.defaultCalories).toBe(800);
   });
 
