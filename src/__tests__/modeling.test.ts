@@ -5,6 +5,7 @@ import { feetInchesToCentimeters, poundsToKilograms } from '../utils/conversions
 
 describe('generateProjections', () => {
   const profile: Profile = {
+    name: 'Modeling Profile',
     unitSystem: 'imperial',
     startDate: '2025-01-01',
     startWeightKg: poundsToKilograms(265),

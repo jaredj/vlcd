@@ -23,6 +23,7 @@ const DEFAULT_GOAL: FitnessGoal = 'alpinist-ready';
 const DEFAULT_START_DATE = '2025-10-17';
 
 interface FormState {
+  name: string;
   unitSystem: UnitSystem;
   startDate: string;
   startWeight: number;
@@ -34,6 +35,16 @@ interface FormState {
   goal: FitnessGoal;
   defaultCalories: number;
   defaultActivityLevel: Profile['defaultActivityLevel'];
+}
+
+const PROFILE_NAME_STORAGE_KEY = 'vlcd-last-profile-name';
+
+function getStoredProfileName(): string {
+  if (typeof window === 'undefined') {
+    /* istanbul ignore next -- server environments do not provide window */
+    return '';
+  }
+  return window.localStorage.getItem(PROFILE_NAME_STORAGE_KEY) ?? '';
 }
 
 export interface ProfileFormProps {
@@ -50,6 +61,7 @@ function createInitialState(profile: Profile | null): FormState {
   if (profile) {
     const heightFeetInches = centimetersToFeetInches(profile.heightCm);
     return {
+      name: profile.name,
       unitSystem: profile.unitSystem,
       startDate: profile.startDate,
       startWeight: profile.unitSystem === 'imperial' ? kilogramsToPounds(profile.startWeightKg) : profile.startWeightKg,
@@ -65,6 +77,7 @@ function createInitialState(profile: Profile | null): FormState {
   }
 
   return {
+    name: getStoredProfileName(),
     unitSystem: 'imperial',
     startDate: DEFAULT_START_DATE,
     startWeight: DEFAULT_START_WEIGHT_LB,
@@ -129,6 +142,7 @@ export default function ProfileForm({
 
   const normalizedProfile: Profile = useMemo(
     () => ({
+      name: form.name.trim(),
       unitSystem: form.unitSystem,
       startDate: form.startDate,
       startWeightKg: weightKg,
@@ -139,7 +153,18 @@ export default function ProfileForm({
       defaultCalories: form.defaultCalories,
       defaultActivityLevel: form.defaultActivityLevel
     }),
-    [form.age, form.defaultActivityLevel, form.defaultCalories, form.goal, form.sex, form.startDate, form.unitSystem, heightCm, weightKg]
+    [
+      form.age,
+      form.defaultActivityLevel,
+      form.defaultCalories,
+      form.goal,
+      form.name,
+      form.sex,
+      form.startDate,
+      form.unitSystem,
+      heightCm,
+      weightKg
+    ]
   );
 
   const profilePreviewBmi = bmi(weightKg, heightCm);
@@ -158,6 +183,7 @@ export default function ProfileForm({
   const isBelowMinimum = form.defaultCalories < minimumSafeCalories;
   const canAutoSubmit =
     Boolean(form.startDate) &&
+    form.name.trim().length > 0 &&
     weightKg > 0 &&
     heightCm > 0 &&
     form.age >= 18 &&
@@ -223,6 +249,17 @@ export default function ProfileForm({
 
   return (
     <form onSubmit={handleSubmit} className="profile-form">
+      <label>
+        Profile name
+        <input
+          type="text"
+          value={form.name}
+          onChange={(event) => updateField('name', event.target.value)}
+          placeholder="e.g. Alice"
+          autoComplete="nickname"
+          required
+        />
+      </label>
       {baselineIsCollapsed ? (
         <div className="baseline-editor-toggle">
           <button

@@ -14,6 +14,7 @@ describe('PlanAdjustments', () => {
 
   it('saves custom calorie targets for a day', async () => {
     const profile: Profile = {
+      name: 'Plan Adjustments User',
       unitSystem: 'imperial',
       startDate: '2025-10-17',
       startWeightKg: poundsToKilograms(265),
@@ -69,6 +70,7 @@ describe('PlanAdjustments', () => {
 
   it('stores activity adjustments while preserving baseline calories when none are customized', async () => {
     const profile: Profile = {
+      name: 'Activity Adjustments User',
       unitSystem: 'imperial',
       startDate: '2025-10-17',
       startWeightKg: poundsToKilograms(265),
@@ -103,6 +105,7 @@ describe('PlanAdjustments', () => {
 
   it('flags days planned below the recommended minimum', () => {
     const profile: Profile = {
+      name: 'Low Calorie User',
       unitSystem: 'imperial',
       startDate: '2025-10-17',
       startWeightKg: poundsToKilograms(265),
@@ -129,6 +132,7 @@ describe('PlanAdjustments', () => {
 
   it('visually distinguishes past, present, and future days', () => {
     const profile: Profile = {
+      name: 'Timeline User',
       unitSystem: 'imperial',
       startDate: '2025-10-17',
       startWeightKg: poundsToKilograms(265),
@@ -438,6 +442,7 @@ describe('PlanAdjustments', () => {
     { timeout: 15000 },
     () => {
       const profile: Profile = {
+        name: 'Projection Horizon User',
         unitSystem: 'imperial',
         startDate: '2025-10-17',
         startWeightKg: poundsToKilograms(265),
