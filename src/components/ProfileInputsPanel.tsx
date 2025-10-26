@@ -1,42 +1,40 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import type { JSX } from 'react';
 import { useAppState } from '../lib/state';
 import ProfileForm from './ProfileForm';
 import LiabilityNotice from './LiabilityNotice';
+import { useBaselineEditorState } from '../hooks/useBaselineEditorState';
 
-export default function ProfileInputsPanel(): JSX.Element {
+interface ProfileInputsPanelProps {
+  baselineCollapsed?: boolean;
+  onBaselineCollapsedChange?: (collapsed: boolean) => void;
+}
+
+export default function ProfileInputsPanel({
+  baselineCollapsed: baselineCollapsedProp,
+  onBaselineCollapsedChange
+}: ProfileInputsPanelProps = {}): JSX.Element {
   const { state, setProfile, reset } = useAppState();
-  const [baselineCollapsed, setBaselineCollapsed] = useState<boolean>(() => {
-    /* istanbul ignore next -- tests always run in a browser-like environment */
-    if (typeof window === 'undefined') {
-      return false;
-    }
-    const seen = window.localStorage.getItem('vlcd-baseline-seen');
-    if (!seen) {
-      return false;
-    }
-    const stored = window.localStorage.getItem('vlcd-baseline-collapsed');
-    return stored ? stored === 'true' : true;
-  });
+  const [internalCollapsed, setInternalCollapsed] = useBaselineEditorState();
+  const baselineCollapsed = baselineCollapsedProp ?? internalCollapsed;
 
   useEffect(() => {
-    /* istanbul ignore next -- not triggered in non-browser test runs */
-    if (typeof window === 'undefined') {
+    if (baselineCollapsedProp === undefined) {
       return;
     }
-    window.localStorage.setItem('vlcd-baseline-seen', 'true');
-  }, []);
+    setInternalCollapsed(baselineCollapsedProp);
+  }, [baselineCollapsedProp, setInternalCollapsed]);
 
-  const handleBaselineCollapsedChange = useCallback((collapsed: boolean) => {
-    setBaselineCollapsed(collapsed);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('vlcd-baseline-collapsed', collapsed ? 'true' : 'false');
-    }
-  }, []);
+  const handleBaselineCollapsedChange = useCallback(
+    (collapsed: boolean) => {
+      setInternalCollapsed(collapsed);
+      onBaselineCollapsedChange?.(collapsed);
+    },
+    [onBaselineCollapsedChange, setInternalCollapsed]
+  );
 
   return (
     <section>
-      <h2>Baseline inputs</h2>
       <ProfileForm
         profile={state.profile}
         onSubmit={setProfile}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatISO } from 'date-fns';
-import { renderWithProviders, screen } from '../test-utils';
+import { fireEvent, renderWithProviders, screen } from '../test-utils';
 import Dashboard from '../components/Dashboard';
 import type { AppState, Profile } from '../types';
 import { poundsToKilograms } from '../utils/conversions';
@@ -18,7 +18,7 @@ describe('Dashboard', () => {
 
     renderWithProviders(<Dashboard />, { initialState });
 
-    expect(screen.getByRole('heading', { name: /baseline inputs/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/planned calories per day/i)).toBeInTheDocument();
   });
 
   it('shows current plan insights when a profile is configured', () => {
@@ -47,6 +47,32 @@ describe('Dashboard', () => {
     expect(screen.getByText(/projected weights/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /trajectory/i })).toBeInTheDocument();
     expect(screen.getByText(/track your weigh-ins/i)).toBeInTheDocument();
+  });
+
+  it('opens the baseline editor when the plan snapshot edit control is used', async () => {
+    window.localStorage.setItem('vlcd-baseline-seen', 'true');
+    window.localStorage.setItem('vlcd-baseline-collapsed', 'true');
+    const todayIso = formatISO(new Date(), { representation: 'date' });
+    const profile: Profile = {
+      unitSystem: 'imperial',
+      startDate: todayIso,
+      startWeightKg: poundsToKilograms(260),
+      heightCm: 180,
+      age: 40,
+      sex: 'male',
+      goal: 'feel-great',
+      defaultCalories: 900,
+      defaultActivityLevel: 'light'
+    };
+    const initialState: AppState = { profile, plans: {}, measurements: {} };
+
+    renderWithProviders(<Dashboard />, { initialState });
+
+    expect(screen.queryByLabelText(/diet start date/i)).not.toBeInTheDocument();
+    const editButtons = screen.getAllByRole('button', { name: /edit starting setup/i });
+    const iconButton = editButtons.find((button) => button.classList.contains('icon-button')) ?? editButtons[0];
+    fireEvent.click(iconButton);
+    expect(await screen.findByLabelText(/diet start date/i)).toBeInTheDocument();
   });
 
   it('handles missing projection entries gracefully', () => {

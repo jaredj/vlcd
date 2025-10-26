@@ -8,9 +8,15 @@ import { usePulseOnChange } from '../hooks/usePulseOnChange';
 
 interface ProfileSummaryProps {
   projection: ProjectionResult;
+  onEditBaseline?: () => void;
+  baselineCollapsed?: boolean;
 }
 
-export default function ProfileSummary({ projection }: ProfileSummaryProps): JSX.Element | null {
+export default function ProfileSummary({
+  projection,
+  onEditBaseline,
+  baselineCollapsed
+}: ProfileSummaryProps): JSX.Element | null {
   const { state } = useAppState();
   const profile = state.profile;
   const today = new Date();
@@ -70,9 +76,11 @@ export default function ProfileSummary({ projection }: ProfileSummaryProps): JSX
     };
   })();
 
+  const startWeightPulse = usePulseOnChange(startWeightLabel);
   const weightPulse = usePulseOnChange(targetWeightLabel);
   const arrivalPulse = usePulseOnChange(`${formattedTargetDate ?? 'pending'}-${timeline.arrivalStatus}`);
   const progressPulse = usePulseOnChange(`${timeline.progressBadge}-${timeline.clampedPercent}`);
+  const baselineIsCollapsed = baselineCollapsed ?? true;
 
   if (!profile) {
     return null;
@@ -80,7 +88,6 @@ export default function ProfileSummary({ projection }: ProfileSummaryProps): JSX
 
   return (
     <section>
-      <h2>Plan snapshot</h2>
       <p className="overview-intro">
         Started {formattedStart} — today is {todayLabel}. You&apos;re aiming for <strong>{targetWeightLabel}</strong>
         {formattedTargetDate ? (
@@ -90,6 +97,22 @@ export default function ProfileSummary({ projection }: ProfileSummaryProps): JSX
         )}
       </p>
       <div className="highlight-grid">
+        <div className={`highlight-card highlight-card--interactive ${startWeightPulse ? 'pulse-highlight' : ''}`}>
+          <div className="highlight-card-header">
+            <h3>Starting weight</h3>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => onEditBaseline?.()}
+              aria-label="Edit starting setup"
+              aria-pressed={!baselineIsCollapsed}
+            >
+              ✎
+            </button>
+          </div>
+          <p className="highlight-value">{startWeightLabel}</p>
+          <p className="highlight-subtext">Set {formattedStart}</p>
+        </div>
         <div className={`highlight-card ${weightPulse ? 'pulse-highlight' : ''}`}>
           <h3>Target weight</h3>
           <p className="highlight-value">{targetWeightLabel}</p>

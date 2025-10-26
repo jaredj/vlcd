@@ -219,17 +219,34 @@ export default function ProfileForm({
   }, [isBelowMinimum, warningDismissed]);
 
   const baselineIsCollapsed = baselineCollapsed ?? false;
-  const detailsProps = baselineCollapsed === undefined ? {} : { open: !baselineIsCollapsed };
+  const isEditingBaseline = !baselineIsCollapsed;
 
   return (
     <form onSubmit={handleSubmit} className="profile-form">
-      <details
-        className="collapsible"
-        {...detailsProps}
-        onToggle={(event) => onBaselineCollapsedChange?.(!event.currentTarget.open)}
-      >
-        <summary>Units &amp; body details</summary>
-        <div className="collapsible-content">
+      {baselineIsCollapsed ? (
+        <div className="baseline-editor-toggle">
+          <button
+            type="button"
+            className="show-editor-button"
+            onClick={() => onBaselineCollapsedChange?.(false)}
+          >
+            Edit starting setup
+          </button>
+        </div>
+      ) : null}
+      {isEditingBaseline ? (
+        <div className="baseline-editor" role="region" aria-labelledby="baseline-editor-title">
+          <div className="baseline-editor-header">
+            <h3 id="baseline-editor-title">Starting setup</h3>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => onBaselineCollapsedChange?.(true)}
+              aria-label="Hide starting setup"
+            >
+              ×
+            </button>
+          </div>
           <div className="grid two-columns">
             <label>
               Units
@@ -319,69 +336,77 @@ export default function ProfileForm({
                 <option value="nonbinary">Non-binary / intersex</option>
               </select>
             </label>
-          </div>
-        </div>
-      </details>
-      <div className="grid two-columns">
-        <label>
-          Fitness goal
-          <select value={form.goal} onChange={(event) => updateField('goal', event.target.value as FitnessGoal)}>
-            {Object.entries(GOALS).map(([value, info]) => (
-              <option key={value} value={value}>
-                {info.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Planned calories per day
-          <div className="calorie-input-row">
-            <input
-              type="number"
-              min={0}
-              max={2500}
-              step="10"
-              value={form.defaultCalories}
-              onChange={(event) => updateField('defaultCalories', Number(event.target.value))}
-              required
-              aria-describedby={calorieInputDescriptionIds}
-            />
-            {isBelowMinimum && warningDismissed ? (
-              <span
-                id="calorie-warning-tooltip"
-                className="calorie-warning-tooltip"
-                role="tooltip"
-                tabIndex={0}
-                aria-label="Medical supervision required for plans below your recommended minimum calories."
-                data-tooltip="Medical supervision required below this minimum."
+            <label>
+              Expected baseline activity
+              <select
+                value={form.defaultActivityLevel}
+                onChange={(event) => updateField('defaultActivityLevel', event.target.value as Profile['defaultActivityLevel'])}
               >
-                ⚠
-              </span>
-            ) : null}
+                {Object.entries(ACTIVITY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="goal-select">
+              Fitness goal
+              <div className="select-with-tooltip">
+                <select value={form.goal} onChange={(event) => updateField('goal', event.target.value as FitnessGoal)}>
+                  {Object.entries(GOALS).map(([value, info]) => (
+                    <option key={value} value={value}>
+                      {info.label}
+                    </option>
+                  ))}
+                </select>
+                <span
+                  className="info-tooltip"
+                  role="tooltip"
+                  tabIndex={0}
+                  aria-label={goalInfo.description}
+                  data-tooltip={goalInfo.description}
+                >
+                  ?
+                </span>
+              </div>
+            </label>
+            <div className="bmi-summary" aria-live="polite">
+              <p className="badge">BMI now</p>
+              <p className="bmi-value">{profilePreviewBmi.toFixed(1)}</p>
+              <p className="bmi-target">
+                Goal: {goalInfo.targetBmi.toFixed(1)} → {formatWeight(goalWeightKg, form.unitSystem)}
+              </p>
+            </div>
           </div>
-        </label>
-        <label>
-          Expected baseline activity
-          <select
-            value={form.defaultActivityLevel}
-            onChange={(event) => updateField('defaultActivityLevel', event.target.value as Profile['defaultActivityLevel'])}
-          >
-            {Object.entries(ACTIVITY_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div>
-          <h3>Your estimated BMI</h3>
-          <p className="badge">{profilePreviewBmi.toFixed(1)}</p>
-          <p>
-            Target for the <strong>{goalInfo.label}</strong> goal: {goalInfo.targetBmi.toFixed(1)} BMI — approximately {formatWeight(goalWeightKg, form.unitSystem)}.
-          </p>
-          <small>{goalInfo.description}</small>
         </div>
-      </div>
+      ) : null}
+      <label>
+        Planned calories per day
+        <div className="calorie-input-row">
+          <input
+            type="number"
+            min={0}
+            max={2500}
+            step="10"
+            value={form.defaultCalories}
+            onChange={(event) => updateField('defaultCalories', Number(event.target.value))}
+            required
+            aria-describedby={calorieInputDescriptionIds}
+          />
+          {isBelowMinimum && warningDismissed ? (
+            <span
+              id="calorie-warning-tooltip"
+              className="calorie-warning-tooltip"
+              role="tooltip"
+              tabIndex={0}
+              aria-label="Medical supervision required for plans below your recommended minimum calories."
+              data-tooltip="Medical supervision required below this minimum."
+            >
+              ⚠
+            </span>
+          ) : null}
+        </div>
+      </label>
       <div className="notice" role="note" id="calorie-safety-note">
         <p>
           Recommended minimum based on your profile: <strong>{minimumSafeCalories.toLocaleString()} kcal/day</strong>.

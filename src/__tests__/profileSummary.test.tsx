@@ -1,7 +1,7 @@
 import React from 'react';
 import { addDays, format, formatISO } from 'date-fns';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, renderWithProviders, screen } from '../test-utils';
+import { act, fireEvent, renderWithProviders, screen } from '../test-utils';
 import ProfileSummary from '../components/ProfileSummary';
 import type { AppState, Profile } from '../types';
 import type { ProjectionResult } from '../lib/modeling';
@@ -79,7 +79,8 @@ describe('ProfileSummary', () => {
 
     renderWithProviders(<ProfileSummary projection={projection} />, { initialState });
 
-    expect(screen.getByRole('heading', { name: /plan snapshot/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /starting weight/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /edit starting setup/i })).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`Started ${format(new Date('2025-01-01'), 'MMM d, yyyy')}`, 'i'))).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /target weight/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /estimated arrival/i })).toBeInTheDocument();
@@ -157,8 +158,106 @@ describe('ProfileSummary', () => {
 
     renderWithProviders(<ProfileSummary projection={projection} />, { initialState });
 
-    expect(screen.getByText(/Plan snapshot/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /starting weight/i })).toBeInTheDocument();
     expect(screen.getByText(/plan begins in 5 day/i)).toBeInTheDocument();
+  });
+
+  it('uses singular wording when one day remains or the plan is a day overdue', () => {
+    const startDate = formatISO(addDays(new Date(), -3), { representation: 'date' });
+    const targetTomorrow = formatISO(addDays(new Date(), 1), { representation: 'date' });
+    const targetYesterday = formatISO(addDays(new Date(), -1), { representation: 'date' });
+    const projection: ProjectionResult = {
+      projections: [],
+      targetWeightKg: 72,
+      targetDate: targetTomorrow,
+      startFastedKg: 85,
+      startRefedKg: 86,
+      currentRefedKg: 80
+    };
+    const profile: Profile = {
+      unitSystem: 'imperial',
+      startDate,
+      startWeightKg: 86,
+      heightCm: 168,
+      age: 43,
+      sex: 'male',
+      goal: 'feel-great',
+      defaultCalories: 900,
+      defaultActivityLevel: 'light'
+    };
+    const initialState: AppState = { profile, plans: {}, measurements: {} };
+
+    const { rerender } = renderWithProviders(<ProfileSummary projection={projection} />, { initialState });
+
+    const arrivalCard = screen.getByRole('heading', { name: /estimated arrival/i }).closest('.highlight-card');
+    expect(arrivalCard).not.toBeNull();
+    expect(arrivalCard).toHaveTextContent(/1 day remaining/i);
+    expect(screen.getByText(/1 day remaining\./i)).toBeInTheDocument();
+
+    rerender(
+      <ProfileSummary
+        projection={{
+          ...projection,
+          targetDate: targetYesterday
+        }}
+      />
+    );
+
+    expect(screen.getByText(/1 day beyond the projection/i)).toBeInTheDocument();
+    expect(screen.getByText(/passed 1 day ago/i)).toBeInTheDocument();
+  });
+
+  it('allows jumping to the baseline editor from the plan snapshot', () => {
+    const todayIso = formatISO(new Date(), { representation: 'date' });
+    const projection: ProjectionResult = {
+      projections: [
+        {
+          date: todayIso,
+          calories: 800,
+          activityLevel: 'minimal',
+          bmr: 1500,
+          tee: 1700,
+          deficit: 900,
+          fastedWeightKg: 90,
+          fastedScaleKg: 90,
+          refedScaleKg: 91,
+          isMeasurement: false
+        }
+      ],
+      targetWeightKg: 75,
+      targetDate: formatISO(addDays(new Date(), 30), { representation: 'date' }),
+      startFastedKg: 92,
+      startRefedKg: 93,
+      currentRefedKg: null
+    };
+    const profile: Profile = {
+      unitSystem: 'imperial',
+      startDate: todayIso,
+      startWeightKg: 93,
+      heightCm: 175,
+      age: 41,
+      sex: 'male',
+      goal: 'feel-great',
+      defaultCalories: 900,
+      defaultActivityLevel: 'light'
+    };
+    const initialState: AppState = { profile, plans: {}, measurements: {} };
+    const onEditBaseline = vi.fn();
+
+    const { rerender } = renderWithProviders(
+      <ProfileSummary projection={projection} onEditBaseline={onEditBaseline} baselineCollapsed />,
+      { initialState }
+    );
+
+    const editButton = screen.getByRole('button', { name: /edit starting setup/i });
+    expect(editButton).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(editButton);
+    expect(onEditBaseline).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <ProfileSummary projection={projection} onEditBaseline={onEditBaseline} baselineCollapsed={false} />
+    );
+    expect(screen.getByRole('button', { name: /edit starting setup/i })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('highlights when the plan timeline has been exceeded', () => {

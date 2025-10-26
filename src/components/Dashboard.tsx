@@ -10,6 +10,7 @@ import MeasurementForm from './MeasurementForm';
 import MethodologyDetails from './MethodologyDetails';
 import { formatWeight } from '../utils/conversions';
 import ProfileInputsPanel from './ProfileInputsPanel';
+import { useBaselineEditorState } from '../hooks/useBaselineEditorState';
 
 export default function Dashboard(): JSX.Element {
   const { state } = useAppState();
@@ -18,14 +19,22 @@ export default function Dashboard(): JSX.Element {
   const unit = profile?.unitSystem;
   const todayIso = formatISO(new Date(), { representation: 'date' });
   const todayEntry = projection.projections.find((entry) => entry.date === todayIso) ?? projection.projections[0];
+  const [baselineCollapsed, setBaselineCollapsed] = useBaselineEditorState();
 
   return (
     <main>
       <h1>Very-Low-Calorie Diet Progress Lab</h1>
-      <ProfileInputsPanel />
+      <ProfileInputsPanel
+        baselineCollapsed={baselineCollapsed}
+        onBaselineCollapsedChange={setBaselineCollapsed}
+      />
       {unit ? (
         <>
-          <ProfileSummary projection={projection} />
+          <ProfileSummary
+            projection={projection}
+            baselineCollapsed={baselineCollapsed}
+            onEditBaseline={() => setBaselineCollapsed(false)}
+          />
           <section>
             <h2>Energy balance snapshot</h2>
             {todayEntry ? (

@@ -14,7 +14,7 @@ describe('App', () => {
   it('renders the baseline inputs when no stored profile is available', () => {
     render(<App />);
 
-    expect(screen.getByRole('heading', { name: /baseline inputs/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/planned calories per day/i)).toBeInTheDocument();
   });
 
   it('renders the dashboard when a stored profile is present', () => {
