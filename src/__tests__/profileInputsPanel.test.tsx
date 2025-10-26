@@ -40,17 +40,22 @@ describe('ProfileInputsPanel', () => {
     expect(Number(weightInput.value)).toBeCloseTo(120.2, 1);
   });
 
-  it('persists the profile automatically once rendered', async () => {
+  it('persists the profile after providing a name', async () => {
     renderWithProviders(<ProfileInputsPanel />);
+
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(/profile name/i), {
+      target: { value: 'Auto Person' }
+    });
 
     await waitFor(() => {
       expect(window.localStorage.getItem('vlcd-app-state-v1')).not.toBeNull();
     });
 
     const stored = JSON.parse(window.localStorage.getItem('vlcd-app-state-v1') ?? '{}') as {
-      profile?: { goal?: string; defaultCalories?: number };
+      profile?: { name?: string; goal?: string; defaultCalories?: number };
     };
     expect(stored.profile).toMatchObject({
+      name: 'Auto Person',
       goal: 'alpinist-ready',
       defaultCalories: 800
     });
@@ -132,6 +137,7 @@ describe('ProfileInputsPanel', () => {
   it('resets the stored plan when the reset action is used', async () => {
     const initialState = {
       profile: {
+        name: 'Reset User',
         unitSystem: 'metric',
         startDate: '2025-01-01',
         startWeightKg: 90,

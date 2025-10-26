@@ -1,11 +1,12 @@
 import React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '../test-utils';
 import ProfileForm from '../components/ProfileForm';
 import type { Profile } from '../types';
 
 function createProfile(overrides: Partial<Profile> = {}): Profile {
   return {
+    name: 'Test User',
     unitSystem: 'metric',
     startDate: '2025-01-01',
     startWeightKg: 90,
@@ -20,14 +21,20 @@ function createProfile(overrides: Partial<Profile> = {}): Profile {
 }
 
 describe('ProfileForm', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it('resets its state when a new profile is provided', async () => {
     const onSubmit = vi.fn();
     const { rerender } = render(<ProfileForm profile={createProfile()} onSubmit={onSubmit} submitLabel="Save" />);
 
+    expect(screen.getByLabelText<HTMLInputElement>(/profile name/i)).toHaveValue('Test User');
     expect(screen.getByLabelText<HTMLSelectElement>(/units/i)).toHaveValue('metric');
     expect(screen.getByLabelText<HTMLInputElement>(/starting weight/i)).toHaveValue(90);
 
     const updatedProfile = createProfile({
+      name: 'Updated User',
       unitSystem: 'imperial',
       startDate: '2025-05-01',
       startWeightKg: 110,
@@ -40,6 +47,8 @@ describe('ProfileForm', () => {
     await waitFor(() => {
       expect(screen.getByLabelText<HTMLSelectElement>(/units/i)).toHaveValue('imperial');
     });
+
+    expect(screen.getByLabelText<HTMLInputElement>(/profile name/i)).toHaveValue('Updated User');
 
     const weightInput = screen.getByLabelText<HTMLInputElement>(/starting weight/i);
     expect(Number(weightInput.value)).toBeCloseTo(242.5, 1);
@@ -65,15 +74,30 @@ describe('ProfileForm', () => {
     expect(screen.getByLabelText<HTMLInputElement>(/height \(in\)/i)).toHaveValue(10.5);
   });
 
+  it('prefills the profile name from the last stored value', () => {
+    window.localStorage.setItem('vlcd-last-profile-name', 'Stored User');
+
+    render(<ProfileForm profile={null} onSubmit={vi.fn()} submitLabel="Save" />);
+
+    expect(screen.getByLabelText<HTMLInputElement>(/profile name/i)).toHaveValue('Stored User');
+  });
+
   it('auto submits normalized profiles and resubmits when fields change', async () => {
     const onSubmit = vi.fn();
     render(<ProfileForm profile={null} onSubmit={onSubmit} submitLabel="Save" autoSubmit />);
+
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(/profile name/i), {
+      target: { value: '  Auto Tester  ' }
+    });
 
     await waitFor(() => {
       expect(onSubmit).toHaveBeenCalledTimes(1);
     });
 
     const firstSubmission = onSubmit.mock.calls[0][0] as Profile;
+    expect(firstSubmission.name).toBe('Auto Tester');
     expect(firstSubmission.unitSystem).toBe('imperial');
     expect(firstSubmission.startWeightKg).toBeCloseTo(120.2, 1);
     expect(firstSubmission.defaultCalories).toBe(800);
@@ -87,6 +111,7 @@ describe('ProfileForm', () => {
     });
 
     const secondSubmission = onSubmit.mock.calls[1][0] as Profile;
+    expect(secondSubmission.name).toBe('Auto Tester');
     expect(secondSubmission.defaultCalories).toBe(900);
     expect(secondSubmission.startWeightKg).toBeCloseTo(firstSubmission.startWeightKg, 1);
   });
@@ -96,12 +121,16 @@ describe('ProfileForm', () => {
     const onAfterSubmit = vi.fn();
     render(<ProfileForm profile={null} onSubmit={onSubmit} submitLabel="Save" onAfterSubmit={onAfterSubmit} />);
 
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(/profile name/i), {
+      target: { value: 'Button User' }
+    });
     fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onAfterSubmit).toHaveBeenCalledTimes(1);
 
     const submitted = onSubmit.mock.calls[0][0] as Profile;
+    expect(submitted.name).toBe('Button User');
     expect(submitted.defaultCalories).toBe(800);
   });
 
@@ -136,6 +165,64 @@ describe('ProfileForm', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /edit starting setup/i }));
     expect(onBaselineCollapsedChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('updates baseline fields when the user edits the inputs', () => {
+    render(<ProfileForm profile={null} onSubmit={vi.fn()} submitLabel="Save" />);
+
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(/profile name/i), {
+      target: { value: 'Editor' }
+    });
+
+    const unitsSelect = screen.getByLabelText<HTMLSelectElement>(/units/i);
+    fireEvent.change(unitsSelect, { target: { value: 'imperial' } });
+
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(/diet start date/i), {
+      target: { value: '2025-12-31' }
+    });
+    expect(screen.getByLabelText<HTMLInputElement>(/diet start date/i)).toHaveValue('2025-12-31');
+
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(/starting weight/i), {
+      target: { value: '255.5' }
+    });
+    expect(screen.getByLabelText<HTMLInputElement>(/starting weight/i)).toHaveValue(255.5);
+
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(/height \(ft\)/i), {
+      target: { value: '6' }
+    });
+    expect(screen.getByLabelText<HTMLInputElement>(/height \(ft\)/i)).toHaveValue(6);
+
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(/height \(in\)/i), {
+      target: { value: '2.5' }
+    });
+    expect(screen.getByLabelText<HTMLInputElement>(/height \(in\)/i)).toHaveValue(2.5);
+
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(/age/i), {
+      target: { value: '30' }
+    });
+    expect(screen.getByLabelText<HTMLInputElement>(/age/i)).toHaveValue(30);
+
+    fireEvent.change(screen.getByLabelText<HTMLSelectElement>(/sex assigned at birth/i), {
+      target: { value: 'female' }
+    });
+    expect(screen.getByLabelText<HTMLSelectElement>(/sex assigned at birth/i)).toHaveValue('female');
+
+    fireEvent.change(screen.getByLabelText<HTMLSelectElement>(/expected baseline activity/i), {
+      target: { value: 'moderate' }
+    });
+    expect(screen.getByLabelText<HTMLSelectElement>(/expected baseline activity/i)).toHaveValue('moderate');
+
+    fireEvent.change(screen.getByLabelText<HTMLSelectElement>(/fitness goal/i), {
+      target: { value: 'feel-great' }
+    });
+    expect(screen.getByLabelText<HTMLSelectElement>(/fitness goal/i)).toHaveValue('feel-great');
+
+    fireEvent.change(unitsSelect, { target: { value: 'metric' } });
+
+    fireEvent.change(screen.getByLabelText<HTMLInputElement>(/height \(cm\)/i), {
+      target: { value: '178.5' }
+    });
+    expect(screen.getByLabelText<HTMLInputElement>(/height \(cm\)/i)).toHaveValue(178.5);
   });
 
   it('allows dismissing the calorie warning and shows a tooltip thereafter', () => {
