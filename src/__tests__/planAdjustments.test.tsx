@@ -296,10 +296,10 @@ describe('PlanAdjustments', () => {
       .spyOn(HTMLElement.prototype, 'scrollIntoView')
       .mockImplementation(() => undefined);
 
-    const observeMock = vi.fn((target: Element) => undefined);
+    const observeMock = vi.fn((_target: Element) => undefined);
     const disconnectMock = vi.fn(() => undefined);
     const takeRecordsMock = vi.fn(() => [] as IntersectionObserverEntry[]);
-    const unobserveMock = vi.fn((target: Element) => undefined);
+    const unobserveMock = vi.fn((_target: Element) => undefined);
 
     let observerCallback: IntersectionObserverCallback | null = null;
     const observers: MockIntersectionObserver[] = [];
@@ -484,7 +484,7 @@ describe('PlanAdjustments', () => {
 
   it('skips scrolling setup when the adjustments section is not rendered', async () => {
     const originalIntersectionObserver = window.IntersectionObserver;
-    const observeMock = vi.fn((target: Element) => undefined);
+    const observeMock = vi.fn((_target: Element) => undefined);
 
     class MockIntersectionObserver implements IntersectionObserver {
       readonly root: Element | Document | null = null;
