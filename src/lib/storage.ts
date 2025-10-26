@@ -65,7 +65,7 @@ export function usePersistentState(initialOverride?: AppState): [
     }
     return INITIAL_STATE;
   });
-  const lastLoadedNameRef = useRef<string | null>(state.profile?.name ?? null);
+  const lastLoadedNameRef = useRef<string | null>(null);
   const pendingFetchNameRef = useRef<string | null>(null);
 
   useEffect(() => {

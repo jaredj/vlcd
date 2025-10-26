@@ -172,6 +172,52 @@ describe('usePersistentState', () => {
     expect(getDocMock).toHaveBeenCalled();
   });
 
+  it('refreshes from firestore even when local state exists', async () => {
+    const localState: Partial<AppState> = {
+      profile: {
+        name: 'SyncedUser',
+        unitSystem: 'metric',
+        startDate: '2025-01-01',
+        startWeightKg: 88,
+        heightCm: 170,
+        age: 34,
+        sex: 'male',
+        goal: 'feel-great',
+        defaultCalories: 1100,
+        defaultActivityLevel: 'light'
+      },
+      plans: { '2025-01-03': { date: '2025-01-03', calories: 1000 } }
+    };
+    const remoteState: AppState = {
+      profile: {
+        name: 'SyncedUser',
+        unitSystem: 'imperial',
+        startDate: '2025-01-10',
+        startWeightKg: 200,
+        heightCm: 172,
+        age: 35,
+        sex: 'male',
+        goal: 'alpinist-ready',
+        defaultCalories: 900,
+        defaultActivityLevel: 'moderate'
+      },
+      plans: { '2025-01-10': { date: '2025-01-10', calories: 900 } },
+      measurements: {}
+    };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(localState));
+    window.localStorage.setItem('vlcd-last-profile-name', 'SyncedUser');
+    getDbMock.mockReturnValue({});
+    getDocMock.mockResolvedValue({ exists: () => true, data: () => remoteState });
+
+    const { result } = renderHook(() => usePersistentState());
+
+    await waitFor(() => {
+      expect(result.current[0]).toEqual(remoteState);
+    });
+
+    expect(getDocMock).toHaveBeenCalled();
+  });
+
   it('writes updates to firestore when available', async () => {
     window.localStorage.setItem('vlcd-last-profile-name', 'Writer');
     getDbMock.mockReturnValue({});
