@@ -1,5 +1,8 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { Firestore, getFirestore } from 'firebase/firestore';
+import type { FirebaseApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+
+type FirestoreInstance = ReturnType<typeof getFirestore>;
 
 type ModeAwareImportMeta = ImportMeta & {
   readonly env?: {
@@ -17,7 +20,7 @@ const firebaseConfig = {
   measurementId: 'G-E6Z6SW5FCB'
 };
 
-let firestoreInstance: Firestore | null = null;
+let firestoreInstance: FirestoreInstance | null = null;
 let forceFirebaseUsage: boolean | null = null;
 
 export function __setFirebaseUsageOverride(value: boolean | null): void {
@@ -45,7 +48,15 @@ function shouldUseFirebase(): boolean {
   return true;
 }
 
-export function getDb(): Firestore | null {
+function resolveApp(): FirebaseApp {
+  const apps = getApps();
+  if (apps.length > 0) {
+    return getApp();
+  }
+  return initializeApp(firebaseConfig);
+}
+
+export function getDb(): FirestoreInstance | null {
   if (!shouldUseFirebase()) {
     return null;
   }
@@ -54,7 +65,7 @@ export function getDb(): Firestore | null {
     return firestoreInstance;
   }
 
-  const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  const app = resolveApp();
   firestoreInstance = getFirestore(app);
   return firestoreInstance;
 }

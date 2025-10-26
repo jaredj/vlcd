@@ -1,5 +1,6 @@
 import { type Dispatch, type SetStateAction, useEffect, useRef, useState } from 'react';
 import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import type { DocumentSnapshot } from 'firebase/firestore';
 import type { AppState } from '../types';
 import { getDb } from './firebase';
 
@@ -93,14 +94,16 @@ export function usePersistentState(initialOverride?: AppState): [
 
     void (async () => {
       try {
-        const snapshot = await getDoc(doc(db, COLLECTION_NAME, activeName));
+        const reference = doc<AppState>(db, COLLECTION_NAME, activeName);
+        const snapshot: DocumentSnapshot<AppState> = await getDoc(reference);
         if (!snapshot.exists()) {
           if (!cancelled) {
             lastLoadedNameRef.current = activeName;
           }
           return;
         }
-        const remote = sanitizeState(snapshot.data() as Partial<AppState>);
+        const snapshotData = snapshot.data() ?? null;
+        const remote = sanitizeState(snapshotData);
         const nextState: AppState = {
           ...remote,
           profile: remote.profile
@@ -158,7 +161,8 @@ export function usePersistentState(initialOverride?: AppState): [
 
     if (db) {
       window.localStorage.removeItem(STORAGE_KEY);
-      void setDoc(doc(db, COLLECTION_NAME, targetName), payload);
+      const reference = doc<AppState>(db, COLLECTION_NAME, targetName);
+      void setDoc(reference, payload);
     } else {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     }
@@ -184,5 +188,6 @@ export function clearStoredState(): void {
     return;
   }
 
-  void deleteDoc(doc(db, COLLECTION_NAME, targetName));
+  const reference = doc<AppState>(db, COLLECTION_NAME, targetName);
+  void deleteDoc(reference);
 }
