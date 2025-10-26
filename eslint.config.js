@@ -11,11 +11,11 @@ export default [
     ignores: ['dist', 'node_modules', 'vite.config.d.ts', 'coverage']
   },
   {
-    files: ['src/**/*.{ts,tsx}', 'vitest.setup.ts'],
+    files: ['src/**/*.{ts,tsx}', 'vitest.setup.ts', 'vite.config.ts'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: './tsconfig.app.json',
+        project: ['./tsconfig.app.json', './tsconfig.node.json'],
         ecmaVersion: 'latest',
         sourceType: 'module',
         ecmaFeatures: {

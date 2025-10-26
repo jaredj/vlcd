@@ -117,6 +117,65 @@ function run(command, args, options = {}) {
   }
 }
 
+function normalizeVitestArgs(rawArgs) {
+  const sanitizedArgs = [];
+  const forwardedCoverageReporters = new Set();
+
+  const ensureValue = (flag, value) => {
+    if (!value || value.startsWith('-')) {
+      throw new Error(`${flag} requires a value`);
+    }
+    return value;
+  };
+
+  for (let index = 0; index < rawArgs.length; index += 1) {
+    const arg = rawArgs[index];
+
+    if (arg === '--no-coverage') {
+      throw new Error('Coverage must remain enabled when running the regression check. Remove "--no-coverage".');
+    }
+
+    if (arg === '--coverage') {
+      const next = rawArgs[index + 1];
+      if (next === 'false' || next === '0') {
+        throw new Error('Coverage must remain enabled when running the regression check. Remove "--coverage false".');
+      }
+      if (next === 'true' || next === '1') {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (arg.startsWith('--coverage=')) {
+      const [, value] = arg.split('=');
+      if (value === 'false' || value === '0') {
+        throw new Error('Coverage must remain enabled when running the regression check. Remove "--coverage=false".');
+      }
+      if (value === 'true' || value === '1' || value === undefined) {
+        continue;
+      }
+    }
+
+    if (arg === '--coverage.reporter') {
+      const value = ensureValue(arg, rawArgs[index + 1]);
+      forwardedCoverageReporters.add(value);
+      sanitizedArgs.push(arg, value);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith('--coverage.reporter=')) {
+      forwardedCoverageReporters.add(arg.split('=').slice(1).join('='));
+      sanitizedArgs.push(arg);
+      continue;
+    }
+
+    sanitizedArgs.push(arg);
+  }
+
+  return { sanitizedArgs, forwardedCoverageReporters };
+}
+
 function ensureCoverageSummary(cwd) {
   const coverageDir = path.join(cwd, 'coverage');
   rmSync(coverageDir, { recursive: true, force: true });
@@ -126,6 +185,12 @@ function ensureCoverageSummary(cwd) {
   const inheritedNodeOptions = process.env.NODE_OPTIONS ?? '';
   const polyfillOption = hasPolyfill ? `--require=${polyfillPath}` : '';
   const nodeOptions = [inheritedNodeOptions, polyfillOption].filter(Boolean).join(' ').trim();
+  const { sanitizedArgs, forwardedCoverageReporters } = normalizeVitestArgs(vitestArgs);
+
+  const defaultCoverageReporters = ['text', 'lcov', 'json-summary'];
+  const coverageReporterArgs = defaultCoverageReporters
+    .filter((reporter) => !forwardedCoverageReporters.has(reporter))
+    .map((reporter) => `--coverage.reporter=${reporter}`);
 
   run(
     'npx',
@@ -133,10 +198,8 @@ function ensureCoverageSummary(cwd) {
       'vitest',
       'run',
       '--coverage',
-      '--coverage.reporter=text',
-      '--coverage.reporter=lcov',
-      '--coverage.reporter=json-summary',
-      ...vitestArgs,
+      ...coverageReporterArgs,
+      ...sanitizedArgs,
     ],
     { cwd, env: { NODE_OPTIONS: nodeOptions } }
   );
