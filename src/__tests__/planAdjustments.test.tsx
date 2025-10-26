@@ -7,13 +7,17 @@ import { generateProjections } from '../lib/modeling';
 import type { AppState, DailyProjection, Profile } from '../types';
 import { feetInchesToCentimeters, poundsToKilograms } from '../utils/conversions';
 
+const { setDoc } = globalThis.__FIREBASE_MOCKS__;
+
 describe('PlanAdjustments', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    setDoc.mockResolvedValue(undefined);
   });
 
   it('saves custom calorie targets for a day', async () => {
     const profile: Profile = {
+      name: 'Test',
       unitSystem: 'imperial',
       startDate: '2025-10-17',
       startWeightKg: poundsToKilograms(265),
@@ -37,31 +41,31 @@ describe('PlanAdjustments', () => {
     fireEvent.change(caloriesInput, { target: { value: '950' } });
 
     await waitFor(() => {
-      const stored = JSON.parse(window.localStorage.getItem('vlcd-app-state-v1') ?? '{}') as {
-        plans?: Record<string, { calories?: number; activityLevel?: string }>;
-      };
-      expect(stored.plans?.[targetDate]?.calories).toBe(950);
+      expect(setDoc).toHaveBeenCalled();
     });
+    let lastCall = setDoc.mock.calls[setDoc.mock.calls.length - 1] ?? [];
+    let payload = lastCall[1] as { plans?: Record<string, { calories?: number; activityLevel?: string }> };
+    expect(payload.plans?.[targetDate]?.calories).toBe(950);
 
     const activitySelect = screen.getByLabelText<HTMLSelectElement>(`Activity for ${targetDate}`);
     fireEvent.change(activitySelect, { target: { value: 'moderate' } });
 
     await waitFor(() => {
-      const stored = JSON.parse(window.localStorage.getItem('vlcd-app-state-v1') ?? '{}') as {
-        plans?: Record<string, { calories?: number; activityLevel?: string }>;
-      };
-      expect(stored.plans?.[targetDate]?.activityLevel).toBe('moderate');
+      expect(setDoc.mock.calls.length).toBeGreaterThan(1);
     });
+    lastCall = setDoc.mock.calls[setDoc.mock.calls.length - 1] ?? [];
+    payload = lastCall[1] as { plans?: Record<string, { calories?: number; activityLevel?: string }> };
+    expect(payload.plans?.[targetDate]?.activityLevel).toBe('moderate');
 
     const resetButton = screen.getByRole('button', { name: /reset/i });
     fireEvent.click(resetButton);
 
     await waitFor(() => {
-      const stored = JSON.parse(window.localStorage.getItem('vlcd-app-state-v1') ?? '{}') as {
-        plans?: Record<string, { calories?: number; activityLevel?: string }>;
-      };
-      expect(stored.plans?.[targetDate]).toBeUndefined();
+      expect(setDoc.mock.calls.length).toBeGreaterThan(2);
     });
+    lastCall = setDoc.mock.calls[setDoc.mock.calls.length - 1] ?? [];
+    payload = lastCall[1] as { plans?: Record<string, { calories?: number; activityLevel?: string }> };
+    expect(payload.plans?.[targetDate]).toBeUndefined();
 
     expect(screen.getByText(/recommended minimum based on your profile/i)).toBeInTheDocument();
     expect(screen.getByText(/indemnify and hold the creators harmless/i)).toBeInTheDocument();
@@ -69,6 +73,7 @@ describe('PlanAdjustments', () => {
 
   it('stores activity adjustments while preserving baseline calories when none are customized', async () => {
     const profile: Profile = {
+      name: 'Test',
       unitSystem: 'imperial',
       startDate: '2025-10-17',
       startWeightKg: poundsToKilograms(265),
@@ -93,16 +98,17 @@ describe('PlanAdjustments', () => {
     fireEvent.change(activitySelect, { target: { value: 'light' } });
 
     await waitFor(() => {
-      const stored = JSON.parse(window.localStorage.getItem('vlcd-app-state-v1') ?? '{}') as {
-        plans?: Record<string, { calories?: number; activityLevel?: string }>;
-      };
-      expect(stored.plans?.[targetDate]?.activityLevel).toBe('light');
-      expect(stored.plans?.[targetDate]?.calories).toBe(targetCalories);
+      expect(setDoc).toHaveBeenCalled();
     });
+    const finalCall = setDoc.mock.calls[setDoc.mock.calls.length - 1] ?? [];
+    const payload = finalCall[1] as { plans?: Record<string, { calories?: number; activityLevel?: string }> };
+    expect(payload.plans?.[targetDate]?.activityLevel).toBe('light');
+    expect(payload.plans?.[targetDate]?.calories).toBe(targetCalories);
   });
 
   it('flags days planned below the recommended minimum', () => {
     const profile: Profile = {
+      name: 'Test',
       unitSystem: 'imperial',
       startDate: '2025-10-17',
       startWeightKg: poundsToKilograms(265),
@@ -129,6 +135,7 @@ describe('PlanAdjustments', () => {
 
   it('visually distinguishes past, present, and future days', () => {
     const profile: Profile = {
+      name: 'Test',
       unitSystem: 'imperial',
       startDate: '2025-10-17',
       startWeightKg: poundsToKilograms(265),
@@ -438,6 +445,7 @@ describe('PlanAdjustments', () => {
     { timeout: 15000 },
     () => {
       const profile: Profile = {
+        name: 'Test',
         unitSystem: 'imperial',
         startDate: '2025-10-17',
         startWeightKg: poundsToKilograms(265),

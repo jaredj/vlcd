@@ -7,14 +7,18 @@ import MeasurementForm from '../components/MeasurementForm';
 import type { AppState, Profile } from '../types';
 import { poundsToKilograms } from '../utils/conversions';
 
+const { setDoc } = globalThis.__FIREBASE_MOCKS__;
+
 describe('MeasurementForm', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    setDoc.mockResolvedValue(undefined);
   });
 
   it('records, lists, and removes weight measurements', async () => {
     const todayIso = formatISO(new Date(), { representation: 'date' });
     const profile: Profile = {
+      name: 'Test',
       unitSystem: 'imperial',
       startDate: '2025-01-01',
       startWeightKg: poundsToKilograms(260),
@@ -50,11 +54,12 @@ describe('MeasurementForm', () => {
     await userEvent.click(screen.getByRole('button', { name: /save measurement/i }));
 
     await waitFor(() => {
-      const stored = JSON.parse(window.localStorage.getItem('vlcd-app-state-v1') ?? '{}') as {
-        measurements?: Record<string, { weightKg: number; fasted: boolean }>;
-      };
-      expect(stored.measurements?.[todayIso]).toMatchObject({ fasted: false });
+      expect(setDoc).toHaveBeenCalled();
     });
+
+    const lastCall = setDoc.mock.calls[setDoc.mock.calls.length - 1] ?? [];
+    const payload = lastCall[1] as { measurements?: Record<string, { fasted: boolean }> };
+    expect(payload.measurements?.[todayIso]).toMatchObject({ fasted: false });
 
     expect(await screen.findByText(todayIso)).toBeInTheDocument();
     expect((screen.getByLabelText(/date/i) as HTMLInputElement).value).toBe(todayIso);

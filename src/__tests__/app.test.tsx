@@ -6,9 +6,12 @@ import App from '../App';
 import type { AppState, Profile } from '../types';
 import { poundsToKilograms } from '../utils/conversions';
 
+const { getDoc } = globalThis.__FIREBASE_MOCKS__;
+
 describe('App', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    getDoc.mockResolvedValue({ exists: () => false });
   });
 
   it('renders the baseline inputs when no stored profile is available', () => {
@@ -17,9 +20,10 @@ describe('App', () => {
     expect(screen.getByLabelText(/planned calories per day/i)).toBeInTheDocument();
   });
 
-  it('renders the dashboard when a stored profile is present', () => {
+  it('renders the dashboard when a stored profile is present', async () => {
     const todayIso = formatISO(new Date(), { representation: 'date' });
     const profile: Profile = {
+      name: 'Remy',
       unitSystem: 'imperial',
       startDate: '2025-01-01',
       startWeightKg: poundsToKilograms(260),
@@ -39,12 +43,16 @@ describe('App', () => {
         [todayIso]: { date: todayIso, weightKg: poundsToKilograms(250), fasted: true }
       }
     };
-    window.localStorage.setItem('vlcd-app-state-v1', JSON.stringify(storedState));
+    window.localStorage.setItem('vlcd-last-profile-name', 'Remy');
+    getDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => storedState
+    });
 
     render(<App />);
 
     expect(
-      screen.getByRole('heading', { level: 1, name: /very-low-calorie diet progress lab/i })
+      await screen.findByRole('heading', { level: 1, name: /very-low-calorie diet progress lab/i })
     ).toBeInTheDocument();
     expect(screen.getByText(/energy balance snapshot/i)).toBeInTheDocument();
     expect(screen.getByText(/track your weigh-ins/i)).toBeInTheDocument();

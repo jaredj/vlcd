@@ -23,6 +23,7 @@ const DEFAULT_GOAL: FitnessGoal = 'alpinist-ready';
 const DEFAULT_START_DATE = '2025-10-17';
 
 interface FormState {
+  name: string;
   unitSystem: UnitSystem;
   startDate: string;
   startWeight: number;
@@ -38,18 +39,21 @@ interface FormState {
 
 export interface ProfileFormProps {
   profile: Profile | null;
+  profileName?: string;
   onSubmit: (profile: Profile) => void;
   submitLabel: string;
   onAfterSubmit?: () => void;
   autoSubmit?: boolean;
   baselineCollapsed?: boolean;
   onBaselineCollapsedChange?: (collapsed: boolean) => void;
+  onProfileNameBlur?: (name: string) => void;
 }
 
-function createInitialState(profile: Profile | null): FormState {
+function createInitialState(profile: Profile | null, profileName?: string): FormState {
   if (profile) {
     const heightFeetInches = centimetersToFeetInches(profile.heightCm);
     return {
+      name: profile.name,
       unitSystem: profile.unitSystem,
       startDate: profile.startDate,
       startWeight: profile.unitSystem === 'imperial' ? kilogramsToPounds(profile.startWeightKg) : profile.startWeightKg,
@@ -65,6 +69,7 @@ function createInitialState(profile: Profile | null): FormState {
   }
 
   return {
+    name: profileName ?? '',
     unitSystem: 'imperial',
     startDate: DEFAULT_START_DATE,
     startWeight: DEFAULT_START_WEIGHT_LB,
@@ -83,14 +88,16 @@ const CALORIE_WARNING_DISMISSED_KEY = 'vlcd-calorie-warning-dismissed';
 
 export default function ProfileForm({
   profile,
+  profileName,
   onSubmit,
   submitLabel,
   onAfterSubmit,
   autoSubmit = false,
   baselineCollapsed,
-  onBaselineCollapsedChange
+  onBaselineCollapsedChange,
+  onProfileNameBlur
 }: ProfileFormProps): JSX.Element {
-  const [form, setForm] = useState<FormState>(() => createInitialState(profile));
+  const [form, setForm] = useState<FormState>(() => createInitialState(profile, profileName));
   const lastSubmitted = useRef<string | null>(null);
   const [warningDismissed, setWarningDismissed] = useState<boolean>(() => {
     /* istanbul ignore next -- server environments do not provide window */
@@ -102,10 +109,10 @@ export default function ProfileForm({
 
   useEffect(() => {
     startTransition(() => {
-      setForm(createInitialState(profile));
+      setForm(createInitialState(profile, profileName));
     });
     lastSubmitted.current = null;
-  }, [profile]);
+  }, [profile, profileName]);
 
   useEffect(() => {
     /* istanbul ignore next -- not executed during server-side rendering */
@@ -129,6 +136,7 @@ export default function ProfileForm({
 
   const normalizedProfile: Profile = useMemo(
     () => ({
+      name: form.name.trim(),
       unitSystem: form.unitSystem,
       startDate: form.startDate,
       startWeightKg: weightKg,
@@ -139,7 +147,18 @@ export default function ProfileForm({
       defaultCalories: form.defaultCalories,
       defaultActivityLevel: form.defaultActivityLevel
     }),
-    [form.age, form.defaultActivityLevel, form.defaultCalories, form.goal, form.sex, form.startDate, form.unitSystem, heightCm, weightKg]
+    [
+      form.age,
+      form.defaultActivityLevel,
+      form.defaultCalories,
+      form.goal,
+      form.name,
+      form.sex,
+      form.startDate,
+      form.unitSystem,
+      heightCm,
+      weightKg
+    ]
   );
 
   const profilePreviewBmi = bmi(weightKg, heightCm);
@@ -158,6 +177,7 @@ export default function ProfileForm({
   const isBelowMinimum = form.defaultCalories < minimumSafeCalories;
   const canAutoSubmit =
     Boolean(form.startDate) &&
+    form.name.trim().length > 0 &&
     weightKg > 0 &&
     heightCm > 0 &&
     form.age >= 18 &&
@@ -223,6 +243,17 @@ export default function ProfileForm({
 
   return (
     <form onSubmit={handleSubmit} className="profile-form">
+      <label>
+        Profile name
+        <input
+          type="text"
+          value={form.name}
+          onChange={(event) => updateField('name', event.target.value)}
+          onBlur={(event) => onProfileNameBlur?.(event.target.value)}
+          required
+          placeholder="e.g. Jane"
+        />
+      </label>
       {baselineIsCollapsed ? (
         <div className="baseline-editor-toggle">
           <button
