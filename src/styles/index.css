@@ -67,6 +67,246 @@ label {
   font-weight: 600;
 }
 
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.collapsible {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+}
+
+.collapsible[open] {
+  box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.collapsible summary {
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  position: relative;
+  padding-right: 1.5rem;
+}
+
+.collapsible summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsible summary::after {
+  content: '▾';
+  position: absolute;
+  right: 0.25rem;
+  top: 0.25rem;
+  transition: transform 0.25s ease;
+}
+
+.collapsible[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.collapsible-content {
+  margin-top: 1rem;
+}
+
+.calorie-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.calorie-input-row input {
+  flex: 1 1 auto;
+}
+
+.calorie-warning-tooltip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: #f97316;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: help;
+  position: relative;
+  outline: none;
+}
+
+.calorie-warning-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  left: 50%;
+  transform: translate(-50%, 0.2rem);
+  background: #fff7ed;
+  color: #7c2d12;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 5;
+}
+
+.calorie-warning-tooltip:hover::after,
+.calorie-warning-tooltip:focus::after {
+  opacity: 1;
+  transform: translate(-50%, -0.2rem);
+}
+
+.calorie-warning-tooltip:focus {
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.45);
+}
+
+.calorie-warning-panel {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.dismiss-warning-button {
+  align-self: flex-start;
+  background: #b91c1c;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.9rem;
+}
+
+.dismiss-warning-button:hover {
+  background: #991b1b;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.overview-intro {
+  margin-top: 0;
+  color: #475569;
+}
+
+.highlight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.highlight-card {
+  background: linear-gradient(145deg, #1d4ed8, #2563eb);
+  color: #fff;
+  border-radius: 16px;
+  padding: 1.25rem;
+  box-shadow: 0 20px 40px rgba(37, 99, 235, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+
+.highlight-card::after {
+  content: '';
+  position: absolute;
+  inset: -50% auto auto -50%;
+  width: 120%;
+  height: 120%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent 60%);
+  transform: rotate(25deg);
+}
+
+.highlight-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.highlight-value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.highlight-subtext {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+
+.progress-card {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #0f172a, #1f2937);
+  color: #f8fafc;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.35);
+}
+
+.progress-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.progress-card-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+}
+
+.progress-badge {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.progress-track {
+  position: relative;
+  height: 0.75rem;
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #22d3ee);
+  border-radius: inherit;
+  transition: width 0.5s ease;
+}
+
+.progress-status {
+  margin-top: 0.85rem;
+  margin-bottom: 0;
+  font-size: 0.95rem;
+  color: rgba(226, 232, 240, 0.95);
+}
+
+@keyframes pulseOutline {
+  0% {
+    box-shadow: 0 0 0 0 rgba(125, 211, 252, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 16px rgba(125, 211, 252, 0);
+  }
+}
+
+.pulse-highlight {
+  animation: pulseOutline 0.8s ease-out;
+}
+
 .table-wrapper {
   overflow-x: auto;
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { fireEvent, screen, waitFor } from '../test-utils';
+import { cleanup, fireEvent, screen, waitFor } from '../test-utils';
 import { renderWithProviders } from '../test-utils';
 import ProfileInputsPanel from '../components/ProfileInputsPanel';
 
@@ -71,5 +71,56 @@ describe('ProfileInputsPanel', () => {
     fireEvent.change(caloriesInput, { target: { value: '400' } });
 
     expect(screen.getByText(/medical supervision required/i)).toBeInTheDocument();
+  });
+
+  it('toggles the baseline details collapse state and remembers the preference', async () => {
+    renderWithProviders(<ProfileInputsPanel />);
+
+    const summary = screen.getByText(/units & body details/i);
+    const details = summary.closest('details');
+    expect(details).toHaveAttribute('open');
+
+    fireEvent.click(summary);
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem('vlcd-baseline-collapsed')).toBe('true');
+    });
+    expect(summary.closest('details')).not.toHaveAttribute('open');
+
+    cleanup();
+
+    renderWithProviders(<ProfileInputsPanel />);
+    const newSummary = screen.getByText(/units & body details/i);
+    expect(newSummary.closest('details')).not.toHaveAttribute('open');
+  });
+
+  it('marks the baseline details as seen after the first render', () => {
+    renderWithProviders(<ProfileInputsPanel />);
+
+    expect(window.localStorage.getItem('vlcd-baseline-seen')).toBe('true');
+  });
+
+  it('restores the previous collapse preference when baseline details were seen before', () => {
+    window.localStorage.setItem('vlcd-baseline-seen', 'true');
+    window.localStorage.setItem('vlcd-baseline-collapsed', 'false');
+
+    renderWithProviders(<ProfileInputsPanel />);
+    const summary = screen.getByText(/units & body details/i);
+    expect(summary.closest('details')).toHaveAttribute('open');
+
+    cleanup();
+
+    window.localStorage.setItem('vlcd-baseline-seen', 'true');
+    window.localStorage.setItem('vlcd-baseline-collapsed', 'true');
+    renderWithProviders(<ProfileInputsPanel />);
+    expect(screen.getByText(/units & body details/i).closest('details')).not.toHaveAttribute('open');
+  });
+
+  it('collapses the baseline block when previously viewed but no preference was stored', () => {
+    window.localStorage.setItem('vlcd-baseline-seen', 'true');
+
+    renderWithProviders(<ProfileInputsPanel />);
+
+    expect(screen.getByText(/units & body details/i).closest('details')).not.toHaveAttribute('open');
   });
 });
