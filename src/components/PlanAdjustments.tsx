@@ -177,19 +177,12 @@ export default function PlanAdjustments({ projections, unit }: PlanAdjustmentsPr
           </tbody>
         </table>
       </div>
-      {minimumSafeCalories ? (
+      {minimumSafeCalories && belowMinimumDates.length ? (
         <div className="notice" role="note">
           <p>
-            Recommended minimum based on your profile: <strong>{minimumSafeCalories.toLocaleString()} kcal/day</strong>.
+            <strong>Medical supervision required:</strong> One or more planned days fall below this level. Such
+            protocols must only occur under strict and constant medical supervision.
           </p>
-          {belowMinimumDates.length ? (
-            <p>
-              <strong>Medical supervision required:</strong> One or more planned days fall below this level. Such
-              protocols must only occur under strict and constant medical supervision.
-            </p>
-          ) : (
-            <p>Targets below this threshold must only be undertaken under strict and constant medical supervision.</p>
-          )}
         </div>
       ) : null}
       <LiabilityNotice />

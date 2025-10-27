@@ -61,11 +61,11 @@ describe('ProfileInputsPanel', () => {
     });
   });
 
-  it('displays calorie safety guidance and liability notice', () => {
+  it('displays the liability notice without redundant calorie warnings', () => {
     renderWithProviders(<ProfileInputsPanel />);
 
-    expect(screen.getByText(/recommended minimum based on your profile/i)).toBeInTheDocument();
-    expect(screen.getByText(/strict and constant medical supervision/i)).toBeInTheDocument();
+    expect(screen.queryByText(/recommended minimum based on your profile/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/strict and constant medical supervision/i)).not.toBeInTheDocument();
     expect(screen.getByText(/indemnify and hold the creators harmless/i)).toBeInTheDocument();
   });
 
