@@ -122,11 +122,17 @@ describe('ProjectionChart', () => {
     );
 
     const xAxis = option.xAxis as { axisLabel: { formatter: (value: string | number) => string } };
-    const yAxis = option.yAxis as { axisLabel: { formatter: (value: number) => string } };
+    const yAxis = option.yAxis as {
+      axisLabel: { formatter: (value: number) => string };
+      min?: number;
+      max?: number;
+    };
 
     expect(xAxis.axisLabel.formatter('2025-01-01')).toBe('01-01');
     expect(xAxis.axisLabel.formatter(20250103)).toBe('103');
     expect(yAxis.axisLabel.formatter(84)).toBe('84 kg');
+    expect(yAxis.min).toBe(80);
+    expect(yAxis.max).toBe(85);
 
     const tooltipHtml = runTooltipFormatter(
       option.tooltip as TooltipComponentOption,
@@ -178,7 +184,30 @@ describe('ProjectionChart', () => {
     expect(tooltipHtml).toContain('lb');
     expect(tooltipHtml).not.toContain('Recorded measurement');
 
-    const yAxis = option.yAxis as { axisLabel: { formatter: (value: number) => string } };
+    const yAxis = option.yAxis as {
+      axisLabel: { formatter: (value: number) => string };
+      min?: number;
+      max?: number;
+    };
+    const weightsInPounds = [
+      kilogramsToPounds(84),
+      kilogramsToPounds(83.1),
+      kilogramsToPounds(82.8),
+      kilogramsToPounds(83),
+      kilogramsToPounds(82.6),
+      kilogramsToPounds(82.2),
+      kilogramsToPounds(84.2),
+      kilogramsToPounds(82.5)
+    ];
+    const minPounds = Math.min(...weightsInPounds);
+    const maxPounds = Math.max(...weightsInPounds);
+    const roundedFloor = Math.floor(minPounds / 10) * 10;
+    const expectedMin = roundedFloor >= minPounds ? roundedFloor - 10 : roundedFloor;
+    const roundedCeiling = Math.ceil(maxPounds / 10) * 10;
+    const expectedMax = roundedCeiling <= maxPounds ? roundedCeiling + 10 : roundedCeiling;
+
+    expect(yAxis.min).toBe(expectedMin);
+    expect(yAxis.max).toBe(expectedMax);
     expect(yAxis.axisLabel.formatter(poundsValue)).toBe('182 lb');
   });
 });

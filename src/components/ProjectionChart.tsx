@@ -43,6 +43,41 @@ export default function ProjectionChart({ data, unit }: ProjectionChartProps): J
       return formatWeight(valueKg, unit, 1);
     };
 
+    const numericWeights = chartData.flatMap((entry) => {
+      const values: number[] = [];
+      const { refedScale, fastedScale, measurement } = entry;
+
+      if (typeof refedScale === 'number' && Number.isFinite(refedScale)) {
+        values.push(refedScale);
+      }
+      if (typeof fastedScale === 'number' && Number.isFinite(fastedScale)) {
+        values.push(fastedScale);
+      }
+      if (typeof measurement === 'number' && Number.isFinite(measurement)) {
+        values.push(measurement);
+      }
+
+      return values;
+    });
+
+    const stepSize = unit === 'imperial' ? 10 : 5;
+
+    const axisBounds = numericWeights.length
+      ? (() => {
+          const minWeight = Math.min(...numericWeights);
+          const maxWeight = Math.max(...numericWeights);
+
+          const roundedFloor = Math.floor(minWeight / stepSize) * stepSize;
+          const floorValueRaw = roundedFloor >= minWeight ? roundedFloor - stepSize : roundedFloor;
+          const floorValue = Math.max(floorValueRaw, 0);
+
+          const roundedCeiling = Math.ceil(maxWeight / stepSize) * stepSize;
+          const ceilingValue = roundedCeiling <= maxWeight ? roundedCeiling + stepSize : roundedCeiling;
+
+          return { min: floorValue, max: ceilingValue };
+        })()
+      : { min: undefined, max: undefined };
+
     type TooltipItemParams = DefaultLabelFormatterCallbackParams & { axisValue?: string | number };
 
     const toArray = (
@@ -162,7 +197,9 @@ export default function ProjectionChart({ data, unit }: ProjectionChartProps): J
         axisLabel: {
           color: '#475569',
           formatter: (value: number) => tickFormatter(Number(value), unit)
-        }
+        },
+        min: axisBounds.min,
+        max: axisBounds.max
       },
       dataZoom: [
         {
