@@ -445,10 +445,6 @@ export default function ProfileForm({
         </div>
       </label>
       <div className="notice" role="note" id="calorie-safety-note">
-        <p>
-          Recommended minimum based on your profile: <strong>{minimumSafeCalories.toLocaleString()} kcal/day</strong>.
-        </p>
-        <p>Only consider going below this threshold with strict and constant medical supervision.</p>
         {isBelowMinimum && !warningDismissed ? (
           <div id="calorie-warning-panel" className="calorie-warning-panel">
             <p>

@@ -64,7 +64,8 @@ describe('PlanAdjustments', () => {
       expect(stored.plans?.[targetDate]).toBeUndefined();
     });
 
-    expect(screen.getByText(/recommended minimum based on your profile/i)).toBeInTheDocument();
+    expect(screen.queryByText(/recommended minimum based on your profile/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/medical supervision required/i)).not.toBeInTheDocument();
     expect(screen.getByText(/indemnify and hold the creators harmless/i)).toBeInTheDocument();
   });
 
