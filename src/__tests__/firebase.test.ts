@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { FirebaseApp } from 'firebase/app';
-import type { Firestore } from 'firebase/firestore';
 
 const ORIGINAL_WINDOW = globalThis.window;
 
@@ -14,7 +13,7 @@ const {
   getAppsMock: vi.fn<() => unknown[]>(() => []),
   getAppMock: vi.fn(() => ({})),
   initializeAppMock: vi.fn<() => unknown>(() => ({ name: 'app' })),
-  getFirestoreMock: vi.fn<() => unknown>(() => ({ name: 'firestore' }))
+  getFirestoreMock: vi.fn<() => Record<string, unknown>>(() => ({ name: 'firestore' }))
 }));
 
 vi.mock('firebase/app', () => ({
@@ -88,10 +87,10 @@ describe('firebase integration helpers', () => {
     vi.resetModules();
 
     const existingApp = { name: 'existing-app' } as const;
-    const existingFirestore = { db: true } as const;
+    const existingFirestore: Record<string, unknown> = { db: true };
     getAppsMock.mockReturnValue([existingApp] as unknown[]);
     getAppMock.mockReturnValue(existingApp as unknown as FirebaseApp);
-    getFirestoreMock.mockReturnValue(existingFirestore as unknown as Firestore);
+    getFirestoreMock.mockReturnValue(existingFirestore);
 
     const { __setFirebaseUsageOverride, getDb } = await import('../lib/firebase');
 
@@ -113,10 +112,10 @@ describe('firebase integration helpers', () => {
     vi.resetModules();
 
     const appInstance = { name: 'app' } as const;
-    const firestoreInstance = { name: 'firestore' } as const;
+    const firestoreInstance: Record<string, unknown> = { name: 'firestore' };
     getAppsMock.mockReturnValue([]);
     initializeAppMock.mockReturnValue(appInstance as unknown as FirebaseApp);
-    getFirestoreMock.mockReturnValue(firestoreInstance as unknown as Firestore);
+    getFirestoreMock.mockReturnValue(firestoreInstance);
 
     const { __setFirebaseUsageOverride, getDb } = await import('../lib/firebase');
 
