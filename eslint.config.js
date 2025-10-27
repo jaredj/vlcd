@@ -25,7 +25,11 @@ export default [
       globals: {
         window: 'readonly',
         document: 'readonly',
-        console: 'readonly'
+        console: 'readonly',
+        fetch: 'readonly',
+        AbortController: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly'
       }
     },
     plugins: {
