@@ -1,4 +1,3 @@
-import { ProxyAgent, setGlobalDispatcher } from 'undici';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { render, waitFor } from '@testing-library/react';
@@ -9,13 +8,73 @@ import { AppStateProvider, useAppState } from '../lib/state';
 import { clearStoredState } from '../lib/storage';
 import type { Profile } from '../types';
 
+type UndiciModule = typeof import('undici');
+
 const env = globalThis.process?.env ?? {};
+const isVitest = env.VITEST === 'true';
 const proxyUrl = env.HTTPS_PROXY ?? env.https_proxy ?? null;
-if (proxyUrl) {
-  setGlobalDispatcher(new ProxyAgent(proxyUrl));
+const requestedMode = env.VLCD_FIREBASE_TEST_MODE ?? 'auto';
+
+function isModuleNotFound(error: unknown) {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? (error as { code?: unknown }).code
+      : undefined;
+  return code === 'MODULE_NOT_FOUND' || code === 'ERR_MODULE_NOT_FOUND';
+}
+
+async function configureProxy(url: string) {
+  try {
+    const moduleId = 'undici';
+    const undici = (await import(/* @vite-ignore */ moduleId)) as UndiciModule;
+    undici.setGlobalDispatcher(new undici.ProxyAgent(url));
+  } catch (error) {
+    if (isModuleNotFound(error)) {
+      console.warn('Undici not available; skipping proxy configuration for firebase integration tests.');
+    } else {
+      console.warn('Failed to configure proxy for firebase integration tests.', error);
+    }
+  }
 }
 
 type FirestoreDb = NonNullable<ReturnType<typeof getDb>>;
+
+async function checkInternetAccess(): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 1500);
+
+  try {
+    const response = await fetch('https://clients3.google.com/generate_204', {
+      method: 'HEAD',
+      signal: controller.signal
+    });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+let hasInternetAccess = true;
+
+if (requestedMode === 'skip') {
+  hasInternetAccess = false;
+} else if (requestedMode === 'run') {
+  hasInternetAccess = true;
+} else {
+  hasInternetAccess = isVitest ? await checkInternetAccess() : true;
+}
+
+if (isVitest && hasInternetAccess && proxyUrl) {
+  await configureProxy(proxyUrl);
+}
+
+if (isVitest && !hasInternetAccess) {
+  console.warn('Skipping firebase integration tests because no internet access was detected.');
+}
+
+const describeIfOnline = !isVitest || hasInternetAccess ? describe : describe.skip;
 
 function requireDb(): FirestoreDb {
   const db = getDb();
@@ -37,7 +96,7 @@ afterAll(() => {
   __setFirebaseUsageOverride(null);
 });
 
-describe('firebase live integration', () => {
+describeIfOnline('firebase live integration', () => {
   it(
     'persists, updates, and deletes documents with the configured Firestore instance',
     async () => {

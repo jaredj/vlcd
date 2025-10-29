@@ -10,18 +10,31 @@ const metrics = ['lines', 'statements', 'branches', 'functions'];
 const epsilon = 1e-6;
 const repoRoot = process.cwd();
 
-const {
-  vitestArgs,
-  skipBase,
-  baseRef,
-  fallbackRef,
-  headSummaryPath,
-  showHelp,
-} = parseArgs(process.argv.slice(2));
+const parsedArgs = parseArgs(process.argv.slice(2));
+const { vitestArgs, baseRef, fallbackRef, headSummaryPath, showHelp } = parsedArgs;
+let { skipBase } = parsedArgs;
+
+let hasInternetAccess;
+
+const requestedFirebaseMode = process.env.VLCD_FIREBASE_TEST_MODE;
+if (requestedFirebaseMode === 'run') {
+  hasInternetAccess = true;
+} else if (requestedFirebaseMode === 'skip') {
+  hasInternetAccess = false;
+} else {
+  hasInternetAccess = await checkInternetAccess();
+}
+
+process.env.VLCD_FIREBASE_TEST_MODE = hasInternetAccess ? 'run' : 'skip';
 
 if (showHelp) {
   printHelp();
   process.exit(0);
+}
+
+if (!skipBase && !hasInternetAccess) {
+  console.warn('No internet access detected. Skipping base coverage comparison.');
+  skipBase = true;
 }
 
 const reportPath = process.env.COVERAGE_REPORT_PATH;
@@ -99,6 +112,23 @@ Any remaining arguments are forwarded to "vitest run". Examples:
   npm test -- --head-only src/foo.test.ts # Run coverage for a specific test file.
   npm test -- --run tests --reporter=dot  # Pass custom flags directly to Vitest.
 `);
+}
+
+async function checkInternetAccess(timeoutMs = 1500) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch('https://clients3.google.com/generate_204', {
+      method: 'HEAD',
+      signal: controller.signal,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function run(command, args, options = {}) {
