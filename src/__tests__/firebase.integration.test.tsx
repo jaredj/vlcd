@@ -13,18 +13,23 @@ type UndiciModule = typeof import('undici');
 const env = globalThis.process?.env ?? {};
 const isVitest = env.VITEST === 'true';
 const proxyUrl = env.HTTPS_PROXY ?? env.https_proxy ?? null;
-if (isVitest && proxyUrl) {
+const requestedMode = env.VLCD_FIREBASE_TEST_MODE ?? 'auto';
+
+function isModuleNotFound(error: unknown) {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? (error as { code?: unknown }).code
+      : undefined;
+  return code === 'MODULE_NOT_FOUND' || code === 'ERR_MODULE_NOT_FOUND';
+}
+
+async function configureProxy(url: string) {
   try {
-    const { createRequire } = await import('node:module');
-    const require = createRequire(import.meta.url);
-    const undici = require('undici') as UndiciModule;
-    undici.setGlobalDispatcher(new undici.ProxyAgent(proxyUrl));
+    const moduleId = 'undici';
+    const undici = (await import(/* @vite-ignore */ moduleId)) as UndiciModule;
+    undici.setGlobalDispatcher(new undici.ProxyAgent(url));
   } catch (error) {
-    const code =
-      typeof error === 'object' && error !== null && 'code' in error
-        ? (error as { code?: unknown }).code
-        : undefined;
-    if (code === 'MODULE_NOT_FOUND' || code === 'ERR_MODULE_NOT_FOUND') {
+    if (isModuleNotFound(error)) {
       console.warn('Undici not available; skipping proxy configuration for firebase integration tests.');
     } else {
       console.warn('Failed to configure proxy for firebase integration tests.', error);
@@ -51,7 +56,19 @@ async function checkInternetAccess(): Promise<boolean> {
   }
 }
 
-const hasInternetAccess = isVitest ? await checkInternetAccess() : true;
+let hasInternetAccess = true;
+
+if (requestedMode === 'skip') {
+  hasInternetAccess = false;
+} else if (requestedMode === 'run') {
+  hasInternetAccess = true;
+} else {
+  hasInternetAccess = isVitest ? await checkInternetAccess() : true;
+}
+
+if (isVitest && hasInternetAccess && proxyUrl) {
+  await configureProxy(proxyUrl);
+}
 
 if (isVitest && !hasInternetAccess) {
   console.warn('Skipping firebase integration tests because no internet access was detected.');

@@ -14,17 +14,27 @@ const parsedArgs = parseArgs(process.argv.slice(2));
 const { vitestArgs, baseRef, fallbackRef, headSummaryPath, showHelp } = parsedArgs;
 let { skipBase } = parsedArgs;
 
+let hasInternetAccess;
+
+const requestedFirebaseMode = process.env.VLCD_FIREBASE_TEST_MODE;
+if (requestedFirebaseMode === 'run') {
+  hasInternetAccess = true;
+} else if (requestedFirebaseMode === 'skip') {
+  hasInternetAccess = false;
+} else {
+  hasInternetAccess = await checkInternetAccess();
+}
+
+process.env.VLCD_FIREBASE_TEST_MODE = hasInternetAccess ? 'run' : 'skip';
+
 if (showHelp) {
   printHelp();
   process.exit(0);
 }
 
-if (!skipBase) {
-  const hasInternetAccess = await checkInternetAccess();
-  if (!hasInternetAccess) {
-    console.warn('No internet access detected. Skipping base coverage comparison.');
-    skipBase = true;
-  }
+if (!skipBase && !hasInternetAccess) {
+  console.warn('No internet access detected. Skipping base coverage comparison.');
+  skipBase = true;
 }
 
 const reportPath = process.env.COVERAGE_REPORT_PATH;
