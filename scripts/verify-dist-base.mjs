@@ -38,6 +38,7 @@ async function verifyBasePaths() {
   const contents = await readFile(DIST_INDEX, 'utf8');
 
   const missing = [];
+  const typeScriptReferencePattern = /=("|')(?<path>[^"']+\.(?:ts|tsx))(\1)/gi;
 
   if (!contents.includes(`src="${EXPECTED_BASE}assets/`)) {
     missing.push('JavaScript bundle is not referenced with the expected base path.');
@@ -50,8 +51,16 @@ async function verifyBasePaths() {
     missing.push('Static assets are not referenced with the expected base path.');
   }
 
-  if (contents.includes('src="./src/main.tsx"')) {
-    missing.push('TypeScript entrypoint is referenced directly instead of the compiled bundle.');
+  const typeScriptReferences = Array.from(contents.matchAll(typeScriptReferencePattern), ({ groups }) => groups?.path).filter(
+    Boolean,
+  );
+
+  if (typeScriptReferences.length > 0) {
+    missing.push(
+      `Found TypeScript asset references in build output: ${typeScriptReferences
+        .map((path) => `"${path}"`)
+        .join(', ')}.`,
+    );
   }
 
   if (missing.length > 0) {
